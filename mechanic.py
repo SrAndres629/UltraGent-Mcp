@@ -11,14 +11,45 @@ Implementa:
 - Logs persistentes en .ai/logs/mechanic/
 """
 
-import json
 import logging
 import os
 import tempfile
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+import os
+import json
+import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# --- SECURE BOOT: .NET CONFIGURATION (MUST BE AT THE ABSOLUTE TOP) ---
+# This prevents CoreCLR load failures in Windows before any other import triggers pythonnet.
+PROJECT_ROOT = Path(__file__).parent
+load_dotenv(PROJECT_ROOT / ".env")
+os.environ["PYTHONNET_RUNTIME"] = "coreclr"
+dotnet_config = Path(__file__).parent / "ultragent.runtimeconfig.json"
+if not dotnet_config.exists():
+    try:
+        config = {
+            "runtimeOptions": {
+                "tfm": "net8.0",
+                "framework": {
+                    "name": "Microsoft.NETCore.App",
+                    "version": "8.0.0"
+                }
+            }
+        }
+        dotnet_config.write_text(json.dumps(config), encoding="utf-8")
+    except Exception:
+        pass
+os.environ["PYTHONNET_CORECLR_RUNTIME_CONFIG"] = str(dotnet_config)
+# ---------------------------------------------------------------------
+
+import logging
+import tempfile
+import asyncio
+import subprocess
+from datetime import datetime
 from threading import Lock
 from typing import Any, Optional
 
@@ -57,6 +88,125 @@ MAX_TIMEOUT = 120  # máximo permitido
 
 # Logger
 logger = logging.getLogger("ultragent.mechanic")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SISTEMA DE FALLBACK MULTI-LLM
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class LLMProvider:
+    """Configuración de un proveedor de LLM."""
+    name: str
+    model: str
+    api_key: str
+    base_url: str
+    priority: int = 0
+    
+    def is_valid(self) -> bool:
+        """Verifica si el proveedor tiene credenciales válidas."""
+        return bool(self.api_key and self.api_key not in ("", "GROQ_API_KEY_HERE", "YOUR_API_KEY_HERE"))
+
+
+class LLMFallbackChain:
+    """
+    Cadena de fallback para proveedores de LLM.
+    Intenta cada proveedor en orden de prioridad hasta encontrar uno funcional.
+    """
+    
+    def __init__(self):
+        self.providers: list[LLMProvider] = []
+        self.current_index: int = 0
+        self._load_providers()
+        
+    def _load_providers(self):
+        """Carga los proveedores desde las variables de entorno."""
+        for i in range(1, 10):  # Soporta hasta 9 proveedores
+            provider = os.getenv(f"LLM_PROVIDER_{i}")
+            model = os.getenv(f"LLM_MODEL_{i}")
+            api_key = os.getenv(f"LLM_API_KEY_{i}")
+            base_url = os.getenv(f"LLM_BASE_URL_{i}")
+            
+            if provider and model and api_key:
+                self.providers.append(LLMProvider(
+                    name=provider,
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url or "",
+                    priority=i
+                ))
+        
+        # Filtrar solo los válidos
+        self.providers = [p for p in self.providers if p.is_valid()]
+        
+        if self.providers:
+            logger.info(f"LLM Fallback Chain: {len(self.providers)} proveedores cargados")
+            for p in self.providers:
+                logger.debug(f"  [{p.priority}] {p.name}/{p.model}")
+        else:
+            # Fallback a la configuración legacy
+            legacy_key = os.getenv("LLM_API_KEY")
+            legacy_model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+            if legacy_key:
+                self.providers.append(LLMProvider(
+                    name="legacy",
+                    model=legacy_model,
+                    api_key=legacy_key,
+                    base_url=os.getenv("LLM_BASE_URL", ""),
+                    priority=0
+                ))
+                logger.info("LLM Fallback Chain: Usando configuración legacy")
+    
+    def get_current_provider(self) -> Optional[LLMProvider]:
+        """Obtiene el proveedor actual."""
+        if not self.providers:
+            return None
+        return self.providers[self.current_index]
+    
+    def next_provider(self) -> Optional[LLMProvider]:
+        """Rota al siguiente proveedor disponible."""
+        if not self.providers:
+            return None
+        
+        self.current_index = (self.current_index + 1) % len(self.providers)
+        provider = self.providers[self.current_index]
+        logger.warning(f"LLM Fallback: Rotando a {provider.name}/{provider.model}")
+        return provider
+    
+    def get_config_for_openhands(self) -> dict:
+        """Retorna la configuración formateada para OpenHands/LiteLLM."""
+        provider = self.get_current_provider()
+        if not provider:
+            return {}
+        
+        # Mapeo de nombres de proveedor a formato LiteLLM
+        model_name = provider.model
+        if provider.name == "google":
+            model_name = f"google/{provider.model}"
+        elif provider.name == "groq":
+            model_name = f"groq/{provider.model}"
+        elif provider.name == "openrouter":
+            model_name = f"openrouter/{provider.model}"
+        elif provider.name == "nvidia":
+            model_name = f"openai/{provider.model}"
+        elif provider.name == "openai":
+            model_name = f"openai/{provider.model}"
+        elif provider.name == "ollama":
+            model_name = f"ollama/{provider.model}"
+        
+        return {
+            "model": model_name,
+            "api_key": provider.api_key,
+            "base_url": provider.base_url,
+        }
+    
+    def reset(self):
+        """Reinicia al primer proveedor."""
+        self.current_index = 0
+
+
+# Instancia global del fallback chain
+llm_fallback_chain = LLMFallbackChain()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -680,10 +830,27 @@ except Exception as e:
                 logger.warning(f"Fallo en carga manual de .NET, reintentando carga estándar: {e}")
                 # Si falla el manual, OpenHands intentará su propia carga (fallback)
             
-            # Lazy imports para evitar dependencias duras
+            # Lazy imports for OpenHands components
             from openhands.controller.agent_controller import AgentController
             from openhands.core.schema import AgentState
             from openhands.runtime.impl.docker.docker_runtime import DockerRuntime
+            from openhands.controller.agent import Agent
+            from openhands.core.config.llm_config import LLMConfig
+
+            # WORKAROUND Senior: Asegurar que el agente esté registrado
+            if agent_type == "CodeActAgent":
+                try:
+                    # v1.2.1: Los agentes están en openhands.agenthub
+                    from openhands.agenthub.codeact_agent import codeact_agent
+                    logger.info("CodeActAgent registrado explícitamente desde agenthub.")
+                except ImportError:
+                    try:
+                         # Alternativo: importar el módulo completo
+                         import openhands.agenthub.codeact_agent.codeact_agent
+                         logger.info("CodeActAgent registrado vía agenthub directamente.")
+                    except ImportError as e:
+                         logger.warning(f"No se pudo importar CodeActAgent explícitamente: {e}")
+
             
             # Resolver workspace
             ws_path = Path(workspace_path) if workspace_path else WORKSPACE_DIR
@@ -715,13 +882,51 @@ except Exception as e:
             except Exception as e:
                 logger.warning(f"No se pudo crear el directorio dummy de skills: {e}")
 
+            # Inyectar configuración de LLM desde el Fallback Chain
+            llm_config = llm_fallback_chain.get_config_for_openhands()
+            if not llm_config:
+                logger.error("No hay proveedores de LLM configurados.")
+                return {"success": False, "error": "No LLM providers available."}
+
             oh_config = OpenHandsConfig()
-            # Forzar el uso de la imagen oficial estable para v1.2.0
-            oh_config.sandbox.runtime_container_image = "ghcr.io/all-hands-ai/runtime:0.12-nikolaik"
-            oh_config.sandbox.force_rebuild_runtime = False
+            
+            # Configurar LLM para el Agente usando el objeto LLMConfig (v1.2.1)
+            llm_obj = LLMConfig(
+                model=llm_config.get("model"),
+                api_key=llm_config.get("api_key"),
+                base_url=llm_config.get("base_url") or None,
+            )
+            oh_config.set_llm_config(llm_obj)
+            
+            # SENIOR STRATEGY: Reconstruir el runtime localmente para asegurar compatibilidad con v1.2.1
+            # Esto evita el Error 500 de parámetros inesperados (is_input)
+            oh_config.sandbox.runtime_container_image = None 
+            oh_config.sandbox.force_rebuild_runtime = True
             oh_config.sandbox.initialize_plugins = True
-            oh_config.workspace_base = str(ws_path)
-            oh_config.workspace_base = str(ws_path)
+            
+            # Imagen base estable
+            oh_config.sandbox.base_container_image = "nikolaik/python-nodejs:python3.12-nodejs22"
+            
+            # SENIOR FIX Windows: Usar un path de workspace que sea accesible y sin espacios si es posible
+            # Si el workspace está en OneDrive, Docker puede fallar estrepitosamente.
+            # Intentamos usar una ruta absoluta normalizada.
+            oh_config.workspace_base = str(ws_path.resolve())
+            
+            # Optimización de Recursos y Presupuesto (POLÍTICA: COSTO CERO)
+            oh_config.sandbox.use_host_network = False
+            oh_config.sandbox.timeout = 300 # 5 min por acción
+            
+            # SENIOR FIX: Evitar Error 500 en Windows Sandbox
+            # A veces el montaje de volumes falla en Windows si es muy rápido
+            oh_config.sandbox.keep_runtime_alive = True
+            
+            # Limitar presupuesto a $0 (Solo modelos gratuitos/ilimitados)
+            oh_config.max_budget_per_task = 0.0 
+            oh_config.max_iterations = max_iterations
+            
+            # Nota: Algunos parámetros de limitación de Docker pueden no estar expuestos 
+            # directamente en OpenHandsConfig v1.2.1 de forma simple, 
+            # pero ajustamos los que afectan estabilidad.
             
             # Inicializar Registro de LLM con Config
             llm_registry = LLMRegistry(config=oh_config)
@@ -744,40 +949,99 @@ except Exception as e:
             agent_instance = agent_cls(config=oh_config.get_agent_config(agent_type), llm_registry=llm_registry)
             
             # 4. Inicializar Controlador (El Cerebro)
+            # v1.2.1: ConversationStats requiere file_store, conversation_id, user_id
             from openhands.server.services.conversation_stats import ConversationStats
-            conv_stats = ConversationStats()
+            session_id = "ultragent-session"
+            conv_stats = ConversationStats(
+                file_store=file_store,
+                conversation_id=session_id,
+                user_id="ultragent"
+            )
             
             controller = AgentController(
                 agent=agent_instance,
                 event_stream=event_stream,
                 conversation_stats=conv_stats,
                 iteration_delta=max_iterations,
-                sid="ultragent-session",
+                sid=session_id,
                 file_store=file_store,
             )
+
             # El controlador se suscribe automáticamente al event_stream si no es un delegado
             
             # 3. Hook de Observabilidad (Conectar al HUD/Cortex)
             trajectory = []
             
-            async def event_handler(event):
-                # Capturar cada paso del agente
-                if event.source == "agent":
-                    # Acción del agente (Comando, Edición)
-                    trajectory.append(f"🤖 ACT: {event.action}")
-                    logger.info(f"[OH-Agent] {event.action}")
-                elif event.source == "environment":
-                    # Respuesta del entorno (Salida, Error)
-                    # Truncar output largo
-                    content = str(event.content)
-                    preview = content[:100] + "..." if len(content) > 100 else content
-                    trajectory.append(f"🌍 OBS: {preview}")
+            def event_handler(event):
+                # Capturar cada paso del agente (función síncrona para v1.2.1)
+                try:
+                    if hasattr(event, 'source'):
+                        source = str(event.source)
+                        if "agent" in source.lower():
+                            # Acción del agente (Comando, Edición)
+                            action = getattr(event, 'action', str(event))
+                            trajectory.append(f"🤖 ACT: {action}")
+                            logger.info(f"👉 [OH-Agent] {action}")
+                            print(f"\n🤖 AGENTE: {action}") # Visibilidad inmediata
+                        elif "environment" in source.lower():
+                            # Respuesta del entorno (Salida, Error)
+                            content = str(getattr(event, 'content', event))
+                            preview = content[:150] + "..." if len(content) > 150 else content
+                            trajectory.append(f"🌍 OBS: {preview}")
+                            logger.info(f"👁️ [OH-Env] {preview}")
+                            print(f"\n🌍 ENTORNO: {preview}")
+                except Exception as e:
+                    logger.debug(f"Error procesando evento: {e}")
             
-            controller.event_stream.subscribe(event_handler)
+            # v1.2.1: subscribe requiere subscriber_id (Enum), callback, y callback_id
+            from openhands.events.stream import EventStreamSubscriber
+            event_stream.subscribe(
+                subscriber_id=EventStreamSubscriber.MAIN,
+                callback=event_handler,
+                callback_id="ultragent-observability"
+            )
             
             # 4. Ejecutar Tarea
-            logger.info("Delegando control al Agente...")
-            end_state = await controller.start_task(task)
+            logger.info(f"Delegando control al Agente... (Task: {task})")
+            
+            # v1.2.1: En lugar de start_task, inyectamos un MessageAction del usuario
+            from openhands.events.action import MessageAction
+            from openhands.events.event import EventSource
+            
+            initial_message = MessageAction(content=task)
+            event_stream.add_event(initial_message, EventSource.USER)
+            
+            # Bucle de espera hasta que el agente termine o falle
+            logger.info("Esperando respuesta del agente...")
+            max_wait_seconds = max_iterations * 60 # 60 segundos por iteración permitida
+            wait_time = 0
+            last_state = controller.get_agent_state()
+            
+            while wait_time < max_wait_seconds:
+                current_state = controller.get_agent_state()
+                
+                if current_state != last_state:
+                    logger.info(f"[OH-State] {last_state} -> {current_state}")
+                    last_state = current_state
+                
+                # Si el agente está en modo RUNNING pero no hace nada, forzar un 'step'
+                # En v1.2.1 el controlador necesita ser "avivado" si se usa como librería
+                if current_state == AgentState.RUNNING:
+                    # step() es asíncrono y dispara el siguiente bloque lógico
+                    controller.step()
+                
+                if current_state in (AgentState.FINISHED, AgentState.ERROR, AgentState.REJECTED):
+                    break
+                    
+                await asyncio.sleep(10) # Aumentamos a 10s para dar tiempo al LLM Cloud
+                wait_time += 10
+                wait_time += 5
+                
+                # Reportar progreso cada 30 segundos
+                if wait_time % 30 == 0:
+                    logger.info(f"⏳ Agente sigue trabajando... (Estado: {current_state}, Tiempo espera: {wait_time}s)")
+            
+            end_state = controller.state
             
             # 5. Cerrar Runtime
             # await runtime.stop() # Mantener vivo? No, cerrar por ahora.
@@ -790,7 +1054,7 @@ except Exception as e:
                 "trajectory": trajectory,
                 "metrics": {
                     "steps": len(trajectory),
-                    "iterations_used": controller.state.iteration,
+                    "iterations_used": getattr(controller.state, 'iteration', 0),
                 }
             }
             
