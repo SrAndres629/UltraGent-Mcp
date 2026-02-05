@@ -1,0 +1,17 @@
+# Agent Context Filters (Antigravity/Cursor)
+# Prevent AI from reading massive logs or non-source data
+
+.ai/logs/**
+.ai/workspace/**
+.ai/chroma/**
+.ai/cortex.db
+*.runtimeconfig.json
+neuro_map.html
+*.log
+*.sqlite
+__pycache__/**
+.git/**
+node_modules/**
+.venv/**
+dist/**
+build/**

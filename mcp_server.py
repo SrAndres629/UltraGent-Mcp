@@ -139,369 +139,107 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def sync_status() -> dict:
+def sync_system_status(action: str = "sync", mission_goal: str = None, export_name: str = None) -> dict:
     """
-    Sincroniza y retorna el estado actual del Core .ai/.
+    Centro de Control y Observabilidad de Ultragent.
     
-    Lee los archivos de memoria y retorna un resumen del estado del sistema,
-    incluyendo las últimas decisiones arquitectónicas y el estado de los protocolos.
+    Unifica la sincronización de estado, la gestión de objetivos de misión
+    y la exportación de bitácoras de sesión.
     
-    Returns:
-        dict: Estado del sistema con campos:
-            - status: "online" | "degraded" | "offline"
-            - memory_summary: Resumen de memory.md
-            - protocols_loaded: Número de protocolos asimilados
-            - last_sync: Timestamp de sincronización
-            - hud_available: Si HUD.md está accesible
+    Acciones:
+    - 'sync': Snapshot 360 de salud, misiones, tokens y eventos.
+    - 'set_goal': Define el objetivo actual (Mission Goal) del sistema.
+    - 'export': Genera un ZIP con toda la memoria y logs de la sesión.
     """
-    logger.info("sync_status invocado - iniciando sincronización")
-    
-    result = {
-        "status": "offline",
-        "memory_summary": None,
-        "protocols_loaded": 0,
-        "last_sync": datetime.now().isoformat(),
-        "hud_available": False,
-        "ai_dir_exists": AI_DIR.exists(),
-    }
+    logger.info(f"sync_system_status: action={action}")
     
     try:
-        # Verificar existencia del Core
-        if not AI_DIR.exists():
-            logger.warning(f"Core .ai/ no encontrado en {AI_DIR}")
-            return result
-        
-        result["status"] = "degraded"
-        
-        # Leer memory.md
-        if MEMORY_FILE.exists():
-            content = MEMORY_FILE.read_text(encoding="utf-8")
-            
-            # Extraer decisiones arquitectónicas
-            decisions = re.findall(r"### Decisión Arquitectónica #(\d+):", content)
-            result["protocols_loaded"] = len(decisions)
-            
-            # Extraer las primeras 500 caracteres como resumen
-            result["memory_summary"] = content[:500] + "..." if len(content) > 500 else content
-            logger.info(f"memory.md leído: {len(decisions)} decisiones encontradas")
-        
-        # Verificar HUD
-        if HUD_FILE.exists():
-            result["hud_available"] = True
-            logger.info("HUD.md disponible")
-        
-        # Verificar base de datos
-        if TASKS_DB.exists():
+        from hud_manager import get_hud_manager
+        hud = get_hud_manager()
+
+        if action == "set_goal":
+            if not mission_goal: return {"error": "Se requiere 'mission_goal'"}
+            hud.set_mission_goal(mission_goal)
+            hud.refresh_dashboard(force=True)
+            return {"success": True, "goal": mission_goal}
+
+        elif action == "export":
+            zip_path = hud.export_session(export_name)
+            return {"success": True, "export_path": zip_path}
+
+        elif action == "reset":
             try:
-                conn = get_db_connection()
-                cursor = conn.execute("SELECT COUNT(*) FROM protocol_log")
-                count = cursor.fetchone()[0]
-                conn.close()
-                result["protocols_in_db"] = count
-                logger.info(f"tasks.db: {count} protocolos registrados")
-            except Exception as e:
-                logger.error(f"Error leyendo tasks.db: {e}")
-                result["db_error"] = str(e)
-        
-        result["status"] = "online"
-        logger.info("sync_status completado - sistema online")
-        
+                from sentinel import get_sentinel
+                get_sentinel().clear_signals()
+                return {"success": True, "message": "Señales de Sentinel reiniciadas"}
+            except Exception as e: return {"error": str(e)}
+
+        elif action == "health":
+            health = {"status": "ok", "checks": {}}
+            import docker
+            try:
+                client = docker.from_env()
+                health["checks"]["docker"] = "online" if client.ping() else "error"
+            except Exception: health["checks"]["docker"] = "offline"
+            health["checks"]["db"] = "ok" if TASKS_DB.exists() else "missing"
+            health["checks"]["cortex"] = "ok" if MEMORY_FILE.exists() else "warning"
+            return health
+
+        elif action == "sync":
+            status = {
+                "timestamp": datetime.now().isoformat(),
+                "core": {"status": "online", "ai_dir": str(AI_DIR)},
+                "hud": hud.get_full_status(),
+                "sentinel": {"running": False, "events": 0},
+                "scout": {}, "evolution": {}, "librarian": {},
+                "mechanic": {}, "vision": {},
+                "intelligence": {"total_tokens": 0, "tiers": {}}
+            }
+            # Carga perezosa de estados de módulos
+            try:
+                from sentinel import get_sentinel
+                s_stat = get_sentinel().get_status()
+                status["sentinel"] = {"running": s_stat["running"], "events": s_stat["events_processed"]}
+            except Exception: pass
+            
+            try:
+                from scout import get_scout
+                from evolution import get_evolution
+                status["scout"] = get_scout().get_status()
+                status["evolution"] = get_evolution().get_status()
+            except Exception: pass
+
+            try:
+                from librarian import get_librarian
+                status["librarian"] = get_librarian().get_status()
+            except Exception: pass
+
+            try:
+                from mechanic import get_mechanic
+                from vision import get_vision
+                status["mechanic"] = get_mechanic().get_status()
+                status["vision"] = get_vision().get_status()
+            except Exception: pass
+
+            try:
+                from router import get_router
+                usage = get_router().get_token_usage()
+                status["intelligence"] = {"total_tokens": usage["total_used"], "tiers": usage["by_tier"]}
+            except Exception: pass
+
+            return status
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
     except Exception as e:
-        logger.error(f"Error en sync_status: {e}")
-        result["error"] = str(e)
-    
-    return result
-
-
-@mcp.tool()
-def get_memory() -> str:
-    """
-    Retorna el contenido completo de memory.md.
-    
-    Útil para que el Arquitecto recupere el contexto completo
-    de las decisiones arquitectónicas anteriores.
-    
-    Returns:
-        str: Contenido de memory.md o mensaje de error
-    """
-    logger.info("get_memory invocado")
-    
-    if not MEMORY_FILE.exists():
-        logger.warning("memory.md no existe")
-        return "ERROR: memory.md no encontrado. Ejecutar setup_fs.py"
-    
-    content = MEMORY_FILE.read_text(encoding="utf-8")
-    logger.info(f"get_memory: {len(content)} bytes retornados")
-    return content
-
-
-@mcp.tool()
-def get_hud() -> str:
-    """
-    Retorna el contenido completo de HUD.md.
-    
-    El HUD (Heads-Up Display) muestra el estado en tiempo real
-    de los lóbulos, APIs externas y protocolos.
-    
-    Returns:
-        str: Contenido de HUD.md o mensaje de error
-    """
-    logger.info("get_hud invocado")
-    
-    if not HUD_FILE.exists():
-        logger.warning("HUD.md no existe")
-        return "ERROR: HUD.md no encontrado. Ejecutar setup_fs.py"
-    
-    content = HUD_FILE.read_text(encoding="utf-8")
-    logger.info(f"get_hud: {len(content)} bytes retornados")
-    return content
-
-
-@mcp.tool()
-def get_sentinel_status() -> dict:
-    """
-    Retorna el estado actual del módulo Sentinel.
-    
-    Incluye información sobre:
-    - Si el Sentinel está corriendo
-    - Directorio monitoreado
-    - Número de eventos procesados
-    - Últimos 5 eventos detectados
-    
-    Returns:
-        dict: Estado del Sentinel con campos:
-            - running: bool
-            - watch_path: str
-            - events_processed: int
-            - uptime_seconds: float
-            - recent_events: list[dict]
-    """
-    logger.info("get_sentinel_status invocado")
-    
-    try:
-        from sentinel import get_sentinel
-        sentinel = get_sentinel()
-        status = sentinel.get_status()
-        logger.info(f"Sentinel status: running={status['running']}, events={status['events_processed']}")
-        return status
-    except ImportError as e:
-        logger.error(f"Sentinel no disponible: {e}")
-        return {
-            "error": "Sentinel module not found",
-            "running": False,
-            "message": "Ejecutar: uv sync para instalar dependencias"
-        }
-    except Exception as e:
-        logger.error(f"Error obteniendo estado del Sentinel: {e}")
-        return {
-            "error": str(e),
-            "running": False,
-        }
-
-
-@mcp.tool()
-def clear_sentinel_signals() -> dict:
-    """
-    Limpia los eventos pendientes en signals.json.
-    
-    Útil para resetear el estado después de procesar
-    todos los eventos pendientes.
-    
-    Returns:
-        dict: Resultado de la operación
-    """
-    logger.info("clear_sentinel_signals invocado")
-    
-    try:
-        from sentinel import get_sentinel
-        sentinel = get_sentinel()
-        sentinel.clear_signals()
-        return {"success": True, "message": "signals.json limpiado"}
-    except Exception as e:
-        logger.error(f"Error limpiando signals: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# OMNI-ROUTER TOOLS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@mcp.tool()
-def get_router_status() -> dict:
-    """
-    Retorna el estado actual del Omni-Router.
-    
-    Incluye información sobre:
-    - Estadísticas de llamadas (total, exitosas, fallidas, failovers)
-    - Estado de cada proveedor (Circuit Breaker)
-    - Consumo de tokens por tier
-    
-    Returns:
-        dict: Estado del router con stats, providers y budget
-    """
-    logger.info("get_router_status invocado")
-    
-    try:
-        from router import get_router
-        router = get_router()
-        status = router.get_status()
-        logger.info(f"Router status: {status['stats']}")
-        return status
-    except ImportError as e:
-        logger.error(f"Router no disponible: {e}")
-        return {
-            "error": "Router module not found",
-            "message": "Ejecutar: uv sync para instalar dependencias"
-        }
-    except Exception as e:
-        logger.error(f"Error obteniendo estado del Router: {e}")
+        logger.error(f"Error en sync_system_status: {e}")
         return {"error": str(e)}
 
 
-@mcp.tool()
-def route_task(task_type: str, payload: str, system_prompt: str = "") -> dict:
-    """
-    Enruta una tarea al tier apropiado con failover automático.
-    
-    El Router clasifica automáticamente la tarea y selecciona
-    el proveedor óptimo basado en complejidad/costo.
-    
-    Tiers disponibles:
-    - SPEED: fix_syntax, unit_test, boilerplate, quick_question
-    - CODING: generate_code, refactor, implement_feature, debug
-    - VISUAL: analyze_image, diagram_to_code, swarm
-    - STRATEGIC: architecture_review, security_audit, final_review
-    
-    Args:
-        task_type: Tipo de tarea (generate_code, fix_syntax, etc.)
-        payload: Contenido/prompt de la tarea
-        system_prompt: Prompt de sistema opcional
-        
-    Returns:
-        dict: Resultado con success, content, provider, tier, tokens_used, latency_ms
-    """
-    logger.info(f"route_task invocado: {task_type}")
-    
-    try:
-        import asyncio
-        from router import get_router
-        
-        router = get_router()
-        
-        # Ejecutar async en sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                router.route_task(
-                    task_type=task_type,
-                    payload=payload,
-                    system_prompt=system_prompt if system_prompt else None,
-                )
-            )
-        finally:
-            loop.close()
-        
-        return {
-            "success": result.success,
-            "content": result.content,
-            "provider": result.provider,
-            "tier": result.tier.value,
-            "tokens_used": result.tokens_used,
-            "latency_ms": result.latency_ms,
-            "error": result.error,
-        }
-        
-    except ImportError as e:
-        logger.error(f"Router no disponible: {e}")
-        return {"success": False, "error": "Router module not found"}
-    except Exception as e:
-        logger.error(f"Error en route_task: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def ask_swarm(task: str, subtasks: list, system_prompt: str = "") -> dict:
-    """
-    Procesa múltiples subtareas en paralelo usando Swarms.
-    
-    El Router distribuye las subtareas entre diferentes tiers
-    según su complejidad, ejecutándolas concurrentemente.
-    
-    Args:
-        task: Descripción general de la tarea principal
-        subtasks: Lista de subtareas a procesar
-        system_prompt: Prompt de sistema compartido
-        
-    Returns:
-        dict: Resultados con lista de respuestas y resumen
-    """
-    logger.info(f"ask_swarm invocado: {len(subtasks)} subtareas")
-    
-    try:
-        import asyncio
-        from router import get_router
-        
-        router = get_router()
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            results = loop.run_until_complete(
-                router.ask_swarm(
-                    task=task,
-                    subtasks=subtasks,
-                    system_prompt=system_prompt if system_prompt else None,
-                )
-            )
-        finally:
-            loop.close()
-        
-        return {
-            "success": True,
-            "total": len(results),
-            "successful": sum(1 for r in results if r.success),
-            "results": [
-                {
-                    "success": r.success,
-                    "content": r.content[:500] + "..." if len(r.content) > 500 else r.content,
-                    "provider": r.provider,
-                    "tier": r.tier.value,
-                    "tokens_used": r.tokens_used,
-                    "error": r.error,
-                }
-                for r in results
-            ],
-        }
-        
-    except ImportError as e:
-        logger.error(f"Router no disponible: {e}")
-        return {"success": False, "error": "Router module not found"}
-    except Exception as e:
-        logger.error(f"Error en ask_swarm: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def get_token_usage() -> dict:
-    """
-    Retorna el consumo de tokens por tier.
-    
-    Útil para monitorear el presupuesto de la sesión
-    y el uso por cada tier de inteligencia.
-    
-    Returns:
-        dict: total_used, limit, remaining, by_tier
-    """
-    logger.info("get_token_usage invocado")
-    
-    try:
-        from router import get_router
-        router = get_router()
-        return router.get_token_usage()
-    except Exception as e:
-        logger.error(f"Error en get_token_usage: {e}")
-        return {"error": str(e)}
+# ═══════════════════════════════════════════════════════════════════════════════
+# MISSION CONTROL TOOLS
+# ═══════════════════════════════════════════════════════════════════════════════
+# (N/A - Unified in sync_system_status)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -509,136 +247,77 @@ def get_token_usage() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def search_code(
-    query: str,
+def semantic_search(
+    action: str,
+    query: str = "",
+    file_path: str = "",
     n_results: int = 5,
     language: str = "",
-    node_type: str = "",
+    node_type: str = ""
 ) -> dict:
     """
-    Búsqueda semántica en el código usando lenguaje natural.
+    Descubrimiento Semántico y Arquitectónico de Código.
     
-    Utiliza embeddings GPU para encontrar funciones, clases y métodos
-    relevantes basados en la descripción semántica de la query.
+    Unifica la búsqueda por lenguaje natural, la inspección de esqueletos
+    y el indexado de nuevos módulos.
     
-    Args:
-        query: Consulta en lenguaje natural (ej: "función que valida emails")
-        n_results: Número máximo de resultados (default: 5)
-        language: Filtrar por lenguaje (python, javascript, typescript)
-        node_type: Filtrar por tipo (function, class, method, interface)
-        
-    Returns:
-        dict: Resultados con name, signature, file_path, line, relevance
+    Acciones:
+    - 'search': Búsqueda semántica (NLP) de lógica y funciones.
+    - 'skeleton': Obtiene la estructura funcional de un archivo (firmas).
+    - 'index': Indexa o re-escanea un archivo para la base de datos vectorial.
     """
-    logger.info(f"search_code invocado: '{query[:50]}'")
+    logger.info(f"semantic_search: action={action}, query='{query}', file='{file_path}'")
     
     try:
         from librarian import get_librarian
-        librarian = get_librarian()
+        lib = get_librarian()
         
-        results = librarian.semantic_search(
-            query=query,
-            n_results=n_results,
-            language=language if language else None,
-            node_type=node_type if node_type else None,
-        )
-        
-        return {
-            "success": True,
-            "query": query,
-            "results": results,
-            "count": len(results),
-        }
-        
-    except ImportError as e:
-        logger.error(f"Librarian no disponible: {e}")
-        return {"success": False, "error": "Librarian module not found"}
+        if action == "search":
+            results = lib.semantic_search(
+                query=query, n_results=n_results, 
+                language=language if language else None,
+                node_type=node_type if node_type else None
+            )
+            return {"success": True, "results": results}
+            
+        elif action == "skeleton":
+            if not file_path: return {"error": "Se requiere 'file_path'"}
+            skeleton = lib.get_file_skeleton(file_path)
+            return skeleton
+            
+        elif action == "index":
+            if not file_path: return {"error": "Se requiere 'file_path'"}
+            return lib.index_file(file_path)
+
+        elif action == "find_usage":
+            if not query: return {"error": "Se requiere 'query' (nombre del símbolo)"}
+            return lib.find_symbol_usage(query)
+
+        elif action == "scan_debt":
+            # Escaneo de deuda técnica en un archivo o directorio
+            if not file_path: return {"error": "Se requiere 'file_path'"}
+            path = Path(file_path)
+            
+            if path.is_file():
+                return lib.scan_debt(file_path)
+            elif path.is_dir():
+                # Escaneo recursivo simple
+                report = {"files_scanned": 0, "total_issues": 0, "details": []}
+                for f in path.rglob("*.py"):
+                    res = lib.scan_debt(str(f))
+                    if res.get("issues"):
+                        report["details"].append(res)
+                        report["total_issues"] += res["issue_count"]
+                    report["files_scanned"] += 1
+                return report
+            return {"error": "Path no válido"}
+            
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
     except Exception as e:
-        logger.error(f"Error en search_code: {e}")
+        logger.error(f"Error en semantic_search: {e}")
         return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def get_file_skeleton(file_path: str) -> dict:
-    """
-    Obtiene el esqueleto estructural de un archivo de código.
-    
-    Extrae firmas de funciones, clases y métodos SIN el cuerpo
-    de las implementaciones. Útil para análisis rápido de arquitectura.
-    
-    Lenguajes soportados: .py, .js, .jsx, .ts, .tsx
-    
-    Args:
-        file_path: Ruta absoluta al archivo
-        
-    Returns:
-        dict: Esqueleto con elements (name, type, signature, docstring, line)
-    """
-    logger.info(f"get_file_skeleton invocado: {file_path}")
-    
-    try:
-        from librarian import get_librarian
-        librarian = get_librarian()
-        
-        skeleton = librarian.get_file_skeleton(file_path)
-        return skeleton
-        
-    except ImportError as e:
-        logger.error(f"Librarian no disponible: {e}")
-        return {"error": "Librarian module not found", "file": file_path}
-    except Exception as e:
-        logger.error(f"Error en get_file_skeleton: {e}")
-        return {"error": str(e), "file": file_path}
-
-
-@mcp.tool()
-def index_file(file_path: str) -> dict:
-    """
-    Indexa un archivo en la biblioteca de código.
-    
-    Extrae esqueletos (firmas + docstrings) y los almacena
-    con embeddings vectoriales para búsqueda semántica.
-    
-    Args:
-        file_path: Ruta absoluta al archivo
-        
-    Returns:
-        dict: Resultado con skeletons indexados
-    """
-    logger.info(f"index_file invocado: {file_path}")
-    
-    try:
-        from librarian import get_librarian
-        librarian = get_librarian()
-        return librarian.index_file(file_path)
-    except Exception as e:
-        logger.error(f"Error en index_file: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def get_librarian_status() -> dict:
-    """
-    Retorna el estado del Librarian.
-    
-    Incluye:
-    - Número de esqueletos indexados
-    - Estadísticas de uso
-    - Lenguajes soportados
-    - Estado del modelo de embeddings
-    
-    Returns:
-        dict: Estado del Librarian
-    """
-    logger.info("get_librarian_status invocado")
-    
-    try:
-        from librarian import get_librarian
-        librarian = get_librarian()
-        return librarian.get_status()
-    except Exception as e:
-        logger.error(f"Error en get_librarian_status: {e}")
-        return {"error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -646,60 +325,47 @@ def get_librarian_status() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def add_memory(content: str, tags: List[str] = None, importance: float = 1.0) -> dict:
+def manage_cortex(action: str, content: str = "", tags: list[str] = None, importance: float = 1.0) -> dict:
     """
-    Añade un nuevo átomo de memoria (recuerdo) al Cortex.
+    Gestión integral del Cortex (Memoria de Proyecto .ai).
     
-    Los recuerdos son hechos, decisiones o contexto que el agente
-    debe persistir más allá de la sesión actual.
-    
-    Args:
-        content: Contenido del recuerdo
-        tags: Etiquetas para categorizar (ej: ["decisión", "arquitectura"])
-        importance: Nivel de importancia (0.0 a 1.0)
+    Acciones:
+    - 'add': Guarda un nuevo átomo de memoria (recuerdo).
+    - 'list': Retorna todos los recuerdos del proyecto.
+    - 'read_raw': Retorna el contenido bruto de memory.md.
+    - 'init': Inicializa la estructura cerebral en un nuevo proyecto.
+    """
+    logger.info(f"manage_cortex: action={action}")
+    try:
+        from cortex import get_cortex
+        cortex = get_cortex()
         
-    Returns:
-        dict: {success, memory_id}
-    """
-    logger.info(f"add_memory invocado: '{content[:50]}'")
-    try:
-        from cortex import get_cortex
-        cortex = get_cortex()
-        mid = cortex.add_memory(content, tags, importance)
-        return {"success": True, "memory_id": mid}
+        if action == "add":
+            mid = cortex.add_memory(content, tags, importance)
+            return {"success": True, "memory_id": mid}
+        elif action == "list":
+            memories = cortex.get_all_memories()
+            return {
+                "success": True, 
+                "memories": [
+                    {"id": m.id, "content": m.content, "tags": m.tags, "importance": m.importance, "created_at": str(m.created_at)} for m in memories
+                ]
+            }
+        elif action == "search":
+            from librarian import get_librarian
+            # Cross-module usage for semantic search in memory
+            results = get_librarian().semantic_search(query=content, n_results=5, node_type="memory")
+            return {"success": True, "results": results}
+        elif action == "read_raw":
+            if not MEMORY_FILE.exists(): return {"error": "memory.md no encontrado"}
+            return {"success": True, "content": MEMORY_FILE.read_text(encoding="utf-8")}
+        elif action == "init":
+            return {"success": True, "message": "Cortex inicializado"}
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
     except Exception as e:
-        logger.error(f"Error en add_memory: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def get_all_memories() -> dict:
-    """
-    Retorna todos los átomos de memoria guardados en el Cortex.
-    
-    Returns:
-        dict: {success, memories: list}
-    """
-    logger.info("get_all_memories invocado")
-    try:
-        from cortex import get_cortex
-        cortex = get_cortex()
-        memories = cortex.get_all_memories()
-        return {
-            "success": True, 
-            "memories": [
-                {
-                    "id": m.id,
-                    "content": m.content,
-                    "tags": m.tags,
-                    "importance": m.importance,
-                    "created_at": m.created_at.isoformat() if hasattr(m.created_at, "isoformat") else str(m.created_at)
-                } 
-                for m in memories
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error en get_all_memories: {e}")
+        logger.error(f"Error en manage_cortex: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -708,234 +374,115 @@ def get_all_memories() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-async def search_github_repos(
-    query: str,
-    language: str = "python",
-    min_stars: int = 500,
-    max_results: int = 5,
-) -> dict:
-    """
-    Busca repositorios Gold Standard en GitHub.
-    
-    Filtra por métricas de salud: estrellas, forks, actividad,
-    presencia de tests y typing.
-    
-    Args:
-        query: Términos de búsqueda (ej: "fastapi template")
-        language: Lenguaje de programación
-        min_stars: Mínimo de estrellas requeridas
-        max_results: Número máximo de resultados
-        
-    Returns:
-        dict: Repositorios con health_score y is_gold_standard
-    """
-    logger.info(f"search_github_repos invocado: '{query}'")
-    
-    try:
-        from scout import get_scout
-        scout = get_scout()
-        
-        repos = await scout.search_repositories(
-            query=query,
-            language=language,
-            min_stars=min_stars,
-            max_results=max_results,
-        )
-        
-        return {
-            "success": True,
-            "query": query,
-            "repos": [r.to_dict() for r in repos],
-            "count": len(repos),
-            "gold_standard_count": sum(1 for r in repos if r.is_gold_standard()),
-        }
-        
-    except ImportError as e:
-        logger.error(f"Scout no disponible: {e}")
-        return {"success": False, "error": "Scout module not found"}
-    except Exception as e:
-        logger.error(f"Error en search_github_repos: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-async def benchmark_with_github(
-    local_file: str,
+async def strategic_consultant(
+    action: str,
+    query: str = "",
+    local_file: str = "",
     project_type: str = "api",
     language: str = "python",
+    min_stars: int = 500
 ) -> dict:
     """
-    Realiza auditoría comparativa contra repositorios Gold Standard.
+    Consultoría Estratégica Senior y Scouting de "Gold Standards".
     
-    1. Busca benchmarks en GitHub por tipo de proyecto
-    2. Descarga esqueletos del mejor repo
-    3. Ejecuta análisis comparativo con Evolution
-    4. Genera reporte con Fitness Score
+    Unifica las capacidades de búsqueda en GitHub, Benchmarking comparativo
+    y recomendaciones arquitectónicas proactivas.
     
-    Args:
-        local_file: Ruta al archivo local a evaluar
-        project_type: Tipo de proyecto (api, cli, web, library, agent)
-        language: Lenguaje de programación
-        
-    Returns:
-        dict: Reporte de auditoría con scorecard y issues
+    Acciones:
+    - 'research': Investigación universal sobre una meta (Goal) y recomendación.
+    - 'scout': Busca los mejores repositorios (Gold Standards) para referencia.
+    - 'benchmark': Compara un archivo local contra el mejor repo del mundo en su categoría.
     """
-    logger.info(f"benchmark_with_github invocado: {local_file}")
+    logger.info(f"strategic_consultant: action={action}, query='{query}'")
     
     try:
-        from pathlib import Path
         from scout import get_scout
         from evolution import get_evolution
-        
-        # Leer código local
-        local_path = Path(local_file)
-        if not local_path.exists():
-            return {"success": False, "error": f"File not found: {local_file}"}
-        
-        local_code = local_path.read_text(encoding="utf-8")
-        
-        # Buscar Gold Standards
         scout = get_scout()
-        gold_repos = await scout.harvest_gold_standard(
-            project_type=project_type,
-            language=language,
-        )
-        
-        if not gold_repos:
-            return {
-                "success": False,
-                "error": "No Gold Standard repos found",
-            }
-        
-        # Usar el mejor repo
-        best_repo = gold_repos[0]
-        
-        # Descargar un archivo similar (README para ahora)
-        readme_result = await scout.get_readme(best_repo.full_name)
-        benchmark_code = readme_result.data if readme_result.success else ""
-        
-        # Si hay estructura, intentar descargar archivo similar
-        structure = await scout.get_repository_structure(best_repo.full_name)
-        for file in structure.get("files", []):
-            if file["name"].endswith(".py") and "main" in file["name"].lower():
-                file_result = await scout.download_file_content(
-                    best_repo.full_name,
-                    file["path"],
-                )
-                if file_result.success:
-                    benchmark_code = file_result.data
-                    break
-        
-        # Ejecutar auditoría
-        evolution = get_evolution()
-        report = await evolution.audit_code(
-            local_code=local_code,
-            benchmark_code=benchmark_code,
-            local_file=str(local_path.name),
-            benchmark_repo=best_repo.full_name,
-            language=language,
-        )
-        
-        # Guardar reporte
-        report_path = report.save()
-        
-        return {
-            "success": True,
-            "benchmark_repo": best_repo.full_name,
-            "benchmark_stars": best_repo.stars,
-            "scorecard": report.scorecard.to_dict(),
-            "verdict": report.verdict.value,
-            "critical_issues": [i.to_dict() for i in report.critical_issues],
-            "report_path": str(report_path),
-        }
-        
-    except ImportError as e:
-        logger.error(f"Scout/Evolution no disponible: {e}")
-        return {"success": False, "error": str(e)}
-    except Exception as e:
-        logger.error(f"Error en benchmark_with_github: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-async def strategic_consultant(goal: str) -> dict:
-    """
-    Realiza consultoría estratégica proactiva para una meta de desarrollo.
-    
-    Orquesta:
-    1. Búsqueda Universal (Docs, StackOverflow, GitHub)
-    2. Análisis de "Gold Standards"
-    3. Recomendación de Arquitectura (Clonar vs Construir)
-    
-    Args:
-        goal: Meta o tarea a investigar (ej: "Implementar autenticación JWT")
-        
-    Returns:
-        dict: Reporte con referencias, recomendación y veredicto.
-    """
-    logger.info(f"strategic_consultant invocado: {goal}")
-    try:
-        from evolution import get_evolution
         evolution = get_evolution()
         
-        report = await evolution.proactive_research(goal)
-        return report.to_dict()
+        if action == "research":
+            report = await evolution.proactive_research(query)
+            return report.to_dict()
+            
+        elif action == "scout":
+            repos = await scout.search_repositories(query=query, language=language, min_stars=min_stars, max_results=5)
+            return {"success": True, "repos": [r.to_dict() for r in repos]}
+            
+        elif action == "benchmark":
+            if not local_file: return {"error": "Se requiere 'local_file'"}
+            p = Path(local_file)
+            if not p.exists(): return {"error": "Archivo no encontrado"}
+            gold_repos = await scout.harvest_gold_standard(project_type=project_type, language=language)
+            if not gold_repos: return {"error": "No hay benchmarks disponibles"}
+            best_repo = gold_repos[0]
+            report = await evolution.audit_code(local_code=p.read_text(encoding="utf-8"), local_file=str(p.name), benchmark_repo=best_repo.full_name, language=language)
+            return {"success": True, "scorecard": report.scorecard.to_dict(), "report_path": str(report.save())}
+
+        elif action == "plan":
+            # Genera un plan de ingeniería basado en el estado actual y meta
+            from router import get_router
+            prompt = f"Como arquitecto senior, genera un plan detallado para: {query}. Proyecto: {project_type}. Lenguaje: {language}"
+            result = await get_router().route_task(task_type="STRATEGIC", payload=prompt)
+            return {"success": True, "plan": result.content}
+
+        elif action == "route":
+            from router import get_router
+            result = await get_router().route_task(task_type=project_type, payload=query)
+            return {"success": result.success, "content": result.content, "tier": result.tier.value}
+
+        elif action == "swarm":
+            from router import get_router
+            results = await get_router().ask_swarm(task=query, subtasks=[query])
+            return {"success": True, "results": [r.content for r in results]}
+
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
     except Exception as e:
         logger.error(f"Error en strategic_consultant: {e}")
         return {"success": False, "error": str(e)}
 
 
-@mcp.tool()
-def get_scout_status() -> dict:
-    """
-    Retorna el estado del Scout.
-    
-    Incluye:
-    - Si tiene token de GitHub configurado
-    - Rate limit restante
-    - Estadísticas de búsquedas y descargas
-    
-    Returns:
-        dict: Estado del Scout
-    """
-    logger.info("get_scout_status invocado")
-    
-    try:
-        from scout import get_scout
-        scout = get_scout()
-        return scout.get_status()
-    except Exception as e:
-        logger.error(f"Error en get_scout_status: {e}")
-        return {"error": str(e)}
-
-
+# ═══════════════════════════════════════════════════════════════════════════════
+# VISION TOOLS (Hyper-V Rendering)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def get_evolution_status() -> dict:
+def visualize_architecture(action: str = "render", output_filename: str = None) -> dict:
     """
-    Retorna el estado del Evolution Auditor.
+    Motor de Visualización Arquitectónica (Vision Hyper-V).
     
-    Incluye:
-    - Auditorías realizadas
-    - Historial de scores
-    - Límites de iteración
+    Genera mapas de dependencia y reportes visuales del sistema.
     
-    Returns:
-        dict: Estado del Evolution
+    Acciones:
+    - 'render': Genera el grafo PNG/HTML con dependencias y ciclos.
+    - 'status': Retorna métricas de escaneo y configuración de visión.
     """
-    logger.info("get_evolution_status invocado")
-    
+    logger.info(f"visualize_architecture: action={action}")
     try:
-        from evolution import get_evolution
-        evolution = get_evolution()
-        return evolution.get_status()
+        from vision import get_vision, REPORTS_DIR
+        vision = get_vision()
+        if action == "render":
+            output_path = str(REPORTS_DIR / output_filename) if output_filename else None
+            report = vision.generate_dependency_graph(output_path=output_path)
+            return {"success": True, "graph_path": report.graph_path, "cycles": report.cycles}
+        elif action == "status":
+            return vision.get_status()
+        elif action == "cycles":
+            return vision.get_cycles_report()
+        else:
+            return {"error": f"Acción desconocida: {action}"}
     except Exception as e:
-        logger.error(f"Error en get_evolution_status: {e}")
-        return {"error": str(e)}
-
+        logger.error(f"Error en visualize_architecture: {e}")
+        return {"success": False, "error": str(e)}
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MECHANIC / VISION TOOLS
+# MECHANIC TOOLS (Execution)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXECUTION TOOLS (Mechanic)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
@@ -945,243 +492,67 @@ async def test_code_securely(
     timeout: int = 30,
 ) -> dict:
     """
-    Ejecuta código Python en un contenedor Docker aislado.
+    Validación rápida de código en Sandbox efímero (Legacy).
     
-    El código se ejecuta con:
-    - Límites de memoria (512MB) y CPU (50%)
-    - Sin acceso a red ni al filesystem del host
-    - Auto-destrucción del contenedor al terminar
-    
-    Args:
-        code: Código Python a ejecutar
-        requirements: Paquetes pip opcionales a instalar
-        timeout: Tiempo máximo en segundos (default: 30, max: 120)
-        
-    Returns:
-        dict: {success, stdout, stderr, execution_time}
+    Ejecuta scripts Python en un contenedor Docker aislado con límites de 
+    recurso estrictos y auto-destrucción.
     """
-    logger.info(f"test_code_securely invocado (timeout={timeout}s)")
-    
+    logger.info(f"test_code_securely: timeout={timeout}s")
     try:
         from mechanic import get_mechanic
         mechanic = get_mechanic()
+        if not mechanic.is_available: return {"success": False, "error": "Docker no disponible"}
         
-        if not mechanic.is_available:
-            return {
-                "success": False,
-                "error": "Docker no disponible",
-            }
-        
-        result = mechanic.run_in_sandbox(
-            script=code,
-            requirements=requirements,
-            timeout=timeout,
-        )
-        
+        result = mechanic.run_in_sandbox(script=code, requirements=requirements, timeout=timeout)
         return result.to_dict()
-        
-    except ImportError as e:
-        logger.error(f"Mechanic no disponible: {e}")
-        return {"success": False, "error": "Mechanic module not found"}
     except Exception as e:
         logger.error(f"Error en test_code_securely: {e}")
         return {"success": False, "error": str(e)}
 
 
 @mcp.tool()
-def visualize_architecture(
-    output_filename: str | None = None,
+async def run_agentic_task(
+    task: str,
+    target_directory: str,
+    max_steps: int = 15,
+    agent_type: str = "CodeActAgent"
 ) -> dict:
     """
-    Analiza todos los archivos .py y memorias del Cortex para generar un grafo PNG donde:
-    - Verde: archivos del proyecto
-    - Púrpura: Memorias semánticas (recuerdos)
-    - Gris: dependencias externas
-    - ROJO: ciclos de dependencias (problema!)
-    - Líneas continuas: dependencias de código
-    - Líneas punteadas: relaciones semánticas (Cortex links)
+    MISIÓN AGÉNTICA: Delegación autónoma a OpenHands Engine.
+    
+    El agente operará dentro de un sandbox Docker con acceso al sistema de archivos,
+    terminal y capacidad de auto-corrección para resolver tareas complejas.
     
     Args:
-        output_filename: Nombre del archivo (sin path). Default: auto-generado.
-        
-    Returns:
-        dict: {success, graph_path, nodes, edges, cycles, hotspots}
+        task: Descripción de la misión (ej: "Optimizar el sistema de logs")
+        target_directory: Directorio raíz del proyecto (absoluto)
+        max_steps: Límite de iteraciones (default: 15)
     """
-    logger.info("visualize_architecture invocado")
-    
-    try:
-        from vision import get_vision, REPORTS_DIR
-        from pathlib import Path
-        
-        vision = get_vision()
-        
-        output_path = None
-        if output_filename:
-            output_path = str(REPORTS_DIR / output_filename)
-        
-        report = vision.generate_dependency_graph(output_path=output_path)
-        
-        return {
-            "success": True,
-            "graph_path": report.graph_path,
-            "node_count": len(report.nodes),
-            "edge_count": len(report.edges),
-            "cycles": report.cycles,
-            "hotspots": report.hotspots,
-        }
-        
-    except ImportError as e:
-        logger.error(f"Vision no disponible: {e}")
-        return {"success": False, "error": "Vision module not found"}
-    except Exception as e:
-        logger.error(f"Error en visualize_architecture: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@mcp.tool()
-def get_mechanic_status() -> dict:
-    """
-    Retorna el estado del Mechanic (Docker sandbox).
-    
-    Incluye:
-    - Si Docker está disponible
-    - Límites de recursos configurados
-    - Estadísticas de ejecuciones
-    
-    Returns:
-        dict: Estado del Mechanic
-    """
-    logger.info("get_mechanic_status invocado")
-    
+    logger.info(f"run_agentic_task: delegando '{task[:50]}'")
     try:
         from mechanic import get_mechanic
         mechanic = get_mechanic()
-        return mechanic.get_status()
+        return await mechanic.run_agentic_session(
+            task=task, workspace_path=target_directory, 
+            max_iterations=max_steps, agent_type=agent_type
+        )
     except Exception as e:
-        logger.error(f"Error en get_mechanic_status: {e}")
-        return {"error": str(e)}
-
-
-@mcp.tool()
-def get_vision_status() -> dict:
-    """
-    Retorna el estado del Vision (architecture mapper).
-    
-    Incluye:
-    - Directorio de proyecto
-    - Estadísticas de escaneos
-    - Configuración de grafos
-    
-    Returns:
-        dict: Estado del Vision
-    """
-    logger.info("get_vision_status invocado")
-    
-    try:
-        from vision import get_vision
-        vision = get_vision()
-        return vision.get_status()
-    except Exception as e:
-        logger.error(f"Error en get_vision_status: {e}")
-        return {"error": str(e)}
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# HUD MANAGER TOOLS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@mcp.tool()
-def get_full_status() -> dict:
-    """
-    Retorna el estado completo del sistema desde el HUD.
-    
-    Incluye:
-    - Estado de todos los módulos
-    - Contenido del HUD.md
-    - Misión actual
-    - Uptime
-    
-    Returns:
-        dict: Estado completo del sistema
-    """
-    logger.info("get_full_status invocado")
-    
-    try:
-        from hud_manager import get_hud_manager
-        hud = get_hud_manager()
-        return hud.get_full_status()
-    except Exception as e:
-        logger.error(f"Error en get_full_status: {e}")
-        return {"error": str(e)}
-
-
-@mcp.tool()
-def set_mission_goal(goal: str) -> dict:
-    """
-    Define el objetivo de la misión actual.
-    
-    Este objetivo se mostrará en la cabecera del HUD y
-    servirá como guía para las decisiones del sistema.
-    
-    Args:
-        goal: Descripción del objetivo (ej: "Implementar feature X")
-        
-    Returns:
-        dict: Confirmación con el nuevo goal
-    """
-    logger.info(f"set_mission_goal invocado: {goal}")
-    
-    try:
-        from hud_manager import get_hud_manager
-        hud = get_hud_manager()
-        hud.set_mission_goal(goal)
-        hud.refresh_dashboard(force=True)
-        
-        return {
-            "success": True,
-            "mission_goal": goal,
-        }
-    except Exception as e:
-        logger.error(f"Error en set_mission_goal: {e}")
+        logger.error(f"Error en run_agentic_task: {e}")
         return {"success": False, "error": str(e)}
 
 
 @mcp.tool()
-def export_session(output_filename: str | None = None) -> dict:
+async def heal_system_node(node_path: str, issue: str) -> dict:
     """
-    Exporta la sesión completa como archivo ZIP.
-    
-    Incluye:
-    - Memoria (.ai/memory.md)
-    - Logs (.ai/logs/)
-    - Reportes (.ai/reports/)
-    - HUD (.ai/HUD.md)
-    
-    Args:
-        output_filename: Nombre del archivo ZIP (opcional)
-        
-    Returns:
-        dict: Path al archivo exportado
+    Inicia el protocolo de auto-curación para un nodo específico.
+    Usa el sistema inmunológico (Mechanic + Cortex + NeuroArchitect).
     """
-    logger.info("export_session invocado")
-    
+    logger.info(f"heal_system_node: {node_path}")
     try:
-        from hud_manager import get_hud_manager
-        hud = get_hud_manager()
-        
-        output_path = None
-        if output_filename:
-            output_path = str(Path(output_filename))
-        
-        zip_path = hud.export_session(output_path)
-        
-        return {
-            "success": True,
-            "export_path": zip_path,
-        }
+        from mechanic import get_mechanic
+        return await get_mechanic().heal_node(node_path, issue)
     except Exception as e:
-        logger.error(f"Error en export_session: {e}")
-        return {"success": False, "error": str(e)}
+        return {"error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1189,72 +560,51 @@ def export_session(output_filename: str | None = None) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def analyze_impact(target_node: str) -> dict:
+def analyze_impact(
+    action: str,
+    target_node: str = "",
+    start_node: str = "",
+    end_node: str = ""
+) -> dict:
     """
-    Predice el impacto de modificar un nodo (archivo/módulo).
+    Inteligencia Predictiva y Trazado de Flujos (Neuro-Architect).
     
-    Analiza dependencias directas y efectos secundarios (ripple effect).
-    Útil antes de realizar cambios para evaluar riesgos.
+    Analiza riesgos antes de editar y traza conexiones lógicas.
     
-    Args:
-        target_node: Nombre del nodo a modificar (ej: "router", "utils.py")
-        
-    Returns:
-        dict: {risk_score, direct_impact, ripple_effect}
+    Acciones:
+    - 'impact': Predice efectos secundarios de modificar un archivo.
+    - 'trace': Traza el flujo de datos exacto entre dos nodos.
+    - 'brain_state': Retorna el estado actual del grafo neural (completo).
+    - 'brain_min': Retorna el estado comprimido (óptimo para tokens).
     """
-    logger.info(f"analyze_impact invocado: {target_node}")
+    logger.info(f"analyze_impact: action={action}, target={target_node}")
     try:
         from neuro_architect import get_neuro_architect
         neuro = get_neuro_architect()
-        prediction = neuro.analyze_impact(target_node)
-        return prediction.to_dict()
+        
+        if action == "impact":
+            if not target_node: return {"error": "Se requiere 'target_node'"}
+            return neuro.analyze_impact(target_node).to_dict()
+        elif action == "trace":
+            if not (start_node and end_node): return {"error": "Se requiere 'start_node' y 'end_node'"}
+            return neuro.trace_flow(start_node, end_node)
+        elif action == "bundle":
+            # Retorna un paquete completo para el Agente (Impacto + Relaciones + Riesgos)
+            if not target_node: return {"error": "Se requiere 'target_node'"}
+            impact = neuro.analyze_impact(target_node).to_dict()
+            flow = neuro.get_compressed_brain_state()
+            return {"success": True, "bundle_type": "ARCHITECT_CONTEXT", "impact_analysis": impact, "graph_topology": flow}
+        elif action == "brain_state":
+            return neuro.get_brain_state()
+        elif action == "brain_min":
+            return {"compressed_state": neuro.get_compressed_brain_state()}
+        elif action == "focus":
+            return neuro.get_next_focus()
+        else:
+            return {"error": f"Acción desconocida: {action}"}
     except Exception as e:
         logger.error(f"Error en analyze_impact: {e}")
         return {"error": str(e)}
-
-@mcp.tool()
-def trace_flow(start_node: str, end_node: str) -> dict:
-    """
-    Traza el flujo de conexión entre dos componentes.
-    
-    Muestra cómo viajan los datos o dependencias desde A hasta B.
-    
-    Args:
-        start_node: Nodo origen
-        end_node: Nodo destino
-        
-    Returns:
-        dict: {exists, path, steps}
-    """
-    logger.info(f"trace_flow invocado: {start_node} -> {end_node}")
-    try:
-        from neuro_architect import get_neuro_architect
-        neuro = get_neuro_architect()
-        return neuro.trace_flow(start_node, end_node)
-    except Exception as e:
-        logger.error(f"Error en trace_flow: {e}")
-        return {"error": str(e)}
-
-@mcp.tool()
-def get_brain_state() -> dict:
-    """
-    Retorna el estado completo del Sistema Nervioso (NeuroGraph).
-    
-    Incluye todos los nodos, conexiones, niveles de activación
-    y variables activas para visualización o análisis profundo.
-    
-    Returns:
-        dict: Estado completo del cerebro
-    """
-    logger.info("get_brain_state invocado")
-    try:
-        from neuro_architect import get_neuro_architect
-        neuro = get_neuro_architect()
-        return neuro.get_brain_state()
-    except Exception as e:
-        logger.error(f"Error en get_brain_state: {e}")
-        return {"error": str(e)}
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENTRY POINT

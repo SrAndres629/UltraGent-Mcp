@@ -1,0 +1,19 @@
+FROM nikolaik/python-nodejs:python3.12-nodejs22
+
+USER root
+
+# Setup OpenHands structure
+RUN mkdir -p /openhands/micromamba/bin /openhands/workspace /openhands/code /openhands/poetry
+
+# Install micromamba
+RUN curl -L https://micro.mamba.pm/install.sh | PREFIX_LOCATION=/openhands/micromamba BIN_FOLDER=/openhands/micromamba/bin bash -s -- -y
+
+# Add to path
+ENV PATH="/openhands/micromamba/bin:${PATH}"
+
+# Install tini
+RUN apt-get update && apt-get install -y tini && apt-get clean
+
+# Dummy entrypoint to keep it alive for debugging if needed
+# But OpenHands overrides this.
+ENTRYPOINT ["/usr/bin/tini", "--"]

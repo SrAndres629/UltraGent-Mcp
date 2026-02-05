@@ -45,3 +45,13 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Ultragent Context Killers
+.ai/logs/
+.ai/workspace/
+.ai/chroma/
+*.runtimeconfig.json
+neuro_map.html
+verify_*.py
+diagnose_*.py
+setup_knowledge.py

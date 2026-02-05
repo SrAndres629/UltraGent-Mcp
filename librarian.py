@@ -20,11 +20,36 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Optional
+from datetime import datetime
+from pathlib import Path
+from threading import Lock
+from typing import Any, Optional, List, Dict
+import math
 
 import chromadb
 from chromadb.config import Settings
 # from sentence_transformers import SentenceTransformer # Lazy loaded
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PATRONES DE DEUDA TÉCNICA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DEBT_PATTERNS = {
+    "PLACEHOLDER": [
+        r"TODO", r"FIXME", r"XXX", r"HACK", 
+        r"raise NotImplementedError", r"pass\s*#\s*todo",
+    ],
+    "HARDCODED": [
+        r"[\"'](C:|/home/|/Users/)[\w/]+[\"']",  # Rutas absolutas
+        r"[\"']sk-[a-zA-Z0-9]{20,}[\"']",         # Posibles API Keys
+        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",    # IPs
+    ],
+    "WEAK_LOGIC": [
+        r"except\s+Exception\s*:\s*pass",         # Silent failure
+        r"print\s*\(",                            # Debug prints en prod
+        r"time\.sleep\s*\(\s*[1-9]\d*\s*\)",      # Esperas arbitrarias
+    ]
+}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -601,6 +626,11 @@ class CodeLibrarian:
                 else:
                     where_filter = {"$and": conditions}
             
+            # Special case for memory: if no results in code, try searching by content 
+            # (In a real system this would use a separate collection or different indexing)
+            if node_type == "memory" and not where_filter:
+                 where_filter = {"node_type": "memory"}
+
             # Ejecutar búsqueda
             results = self._skeleton_collection.query(
                 query_embeddings=query_embedding.tolist(),
@@ -684,6 +714,17 @@ class CodeLibrarian:
                 "elements": [],
             }
     
+    def find_symbol_usage(self, symbol_name: str) -> dict:
+        """
+        Busca usos de un símbolo (función, clase, variable) en todo el código indexado.
+        """
+        semantic_results = self.semantic_search(query=f"usage of {symbol_name}", n_results=10)
+        return {
+            "symbol": symbol_name,
+            "semantic_hits": len(semantic_results),
+            "results": semantic_results
+        }
+    
     def get_status(self) -> dict:
         """Retorna estado del Librarian."""
         try:
@@ -763,6 +804,210 @@ class CodeLibrarian:
         )
         
         return results
+
+    def index_memory(self, memory_id: str, content: str, tags: list[str]) -> bool:
+        """
+        Indexa un recuerdo (átomo de memoria) en el espacio vectorial.
+        
+        Args:
+            memory_id: ID único del recuerdo (ej: "mem_12")
+            content: Contenido de texto
+            tags: Etiquetas asociadas
+            
+        Returns:
+            bool: True si se indexó correctamente
+        """
+        try:
+            embedder = self._get_embedder()
+            embedding = embedder.encode(
+                [content],
+                batch_size=1,
+                show_progress_bar=False,
+                convert_to_numpy=True
+            )[0]
+            
+            self._skeleton_collection.add(
+                ids=[memory_id],
+                embeddings=[embedding.tolist()],
+                metadatas=[{
+                    "name": f"Memory {memory_id}",
+                    "node_type": "memory",
+                    "file_path": f"memory://{memory_id}",
+                    "start_line": 0,
+                    "end_line": 0,
+                    "language": "text",
+                    "tags": ",".join(tags),
+                    "indexed_at": datetime.now().isoformat(),
+                }],
+                documents=[content]
+            )
+            logger.info(f"Memoria indexada: {memory_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error indexando memoria: {e}")
+            return False
+
+    def _calculate_entropy(self, text: str) -> float:
+        """Calcula la entropía de Shannon para detectar secretos/aleatoriedad."""
+        if not text: return 0.0
+        entropy = 0.0
+        for x in range(256):
+            p_x = float(text.count(chr(x))) / len(text)
+            if p_x > 0:
+                entropy += - p_x * math.log(p_x, 2)
+        return entropy
+
+    def _analyze_complexity(self, node: Any) -> int:
+        """
+        Calcula la complejidad ciclomática aproximada de un nodo (función).
+        Base = 1 + loops + branches + cases
+        """
+        complexity = 1
+        # Tipos de nodos que aumentan complejidad en Python/JS
+        branch_types = [
+            "if_statement", "for_statement", "while_statement", 
+            "case_clause", "elif_clause", "except_clause",
+            "ternary_expression", "binary_expression" # && y || a veces cuentan
+        ]
+        
+        # Recorrido simple recursivo (BFS)
+        queue = [node]
+        while queue:
+            current = queue.pop(0)
+            if current.type in branch_types:
+                # Para binary expressions, solo AND/OR cuentan
+                if current.type == "binary_expression":
+                    # Chequear operador si es posible, si no, asumimos simple
+                    pass 
+                else:
+                    complexity += 1
+            
+            for child in current.children:
+                queue.append(child)
+                
+        return complexity
+
+    def scan_debt(self, file_path: str) -> dict:
+        """
+        Escanea un archivo usando AST para complejidad y Análisis Estático para patrones.
+        Silicon Valley Grade: Entropy, Cyclomatic Complexity, Dead Code.
+        """
+        path = Path(file_path)
+        if not path.exists():
+            return {"score": 0, "issues": [], "error": "File not found"}
+
+        issues = []
+        try:
+            # 1. Análisis de Texto (Regex refinado + Entropía)
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            lines = text.splitlines()
+            
+            # Buscando secretos de alta entropía (Strings literales largos y aleatorios)
+            # Regex simple para encontrar strings
+            string_literals = re.finditer(r'["\'](.*?)["\']', text)
+            for match in string_literals:
+                content = match.group(1)
+                if len(content) > 16 and " " not in content:
+                    entropy = self._calculate_entropy(content)
+                    if entropy > 4.5: # Umbral empírico para API Keys/Hash
+                        issues.append({
+                            "category": "SECURITY",
+                            "type": "HIGH_ENTROPY_TOKEN",
+                            "line": text[:match.start()].count('\n') + 1,
+                            "content": f"Posible secreto (Entropy: {entropy:.2f}): {content[:10]}..."
+                        })
+
+            # Regex Patterns (Legacy support)
+            for i, line in enumerate(lines, 1):
+                if len(line) > 300: continue
+                for category, patterns in DEBT_PATTERNS.items():
+                    for pattern in patterns:
+                        if re.search(pattern, line, re.IGNORECASE):
+                            issues.append({
+                                "category": category, 
+                                "type": pattern, 
+                                "line": i, 
+                                "content": line.strip()[:100]
+                            })
+
+            # 2. Análisis AST (Complejidad y Estructura)
+            try:
+                skeletons = self._extractor.extract(str(path))
+                # _extractor devuelve objetos CodeSkeleton plana, necesitamos el nodo AST real
+                # Para esto, re-parseamos temporalmente (o refactorizamos extractor para dar nodos)
+                # Por eficiencia y no romper extractor, hacemos parseo rápido aquí si es código soportado.
+                
+                extension = path.suffix.lower()
+                if extension in LANGUAGE_GRAMMARS:
+                    parser, lang = self._extractor._get_parser(extension)
+                    tree = parser.parse(text.encode("utf8"))
+                    
+                    # Recorrer buscando funciones para medir complejidad
+                    cursor = tree.walk()
+                    
+                    def visit(node):
+                        type_metrics = {"function": 0, "class": 0} # Dummy
+                        
+                        # Detectar definiciones de función
+                        is_func = False
+                        if lang == "python" and node.type == "function_definition": is_func = True
+                        elif lang in ("javascript", "typescript") and node.type in ("function_declaration", "method_definition", "arrow_function"): is_func = True
+                        
+                        if is_func:
+                            complexity = self._analyze_complexity(node)
+                            name = self._extractor._get_node_name(node, text.encode("utf8"), lang)
+                            
+                            if complexity > 15: # Umbral Critical
+                                issues.append({
+                                    "category": "COMPLEXITY",
+                                    "type": "HIGH_CYCLOMATIC_COMPLEXITY",
+                                    "line": node.start_point[0] + 1,
+                                    "content": f"Function '{name}' (CC: {complexity}) - Simplify logic"
+                                })
+                            elif complexity > 8: # Umbral Warning
+                                issues.append({
+                                    "category": "COMPLEXITY",
+                                    "type": "MODERATE_COMPLEXITY",
+                                    "line": node.start_point[0] + 1,
+                                    "content": f"Function '{name}' (CC: {complexity})"
+                                })
+
+                            # Check for Empty Blocks (Python: branch con solo 'pass')
+                            # Esto requiere inspección más fina de hijos
+                        
+                        for child in node.children:
+                            visit(child)
+
+                    visit(tree.root_node)
+
+            except Exception as e:
+                # Si falla AST, fallback a text-only
+                logger.warning(f"AST Analysis failed on {path}: {e}")
+
+            # Calcular Score Avanzado
+            base_score = 100
+            penalties = {
+                "SECURITY": 50, # Critical
+                "HARDCODED": 20,
+                "COMPLEXITY": 15,
+                "WEAK_LOGIC": 10,
+                "PLACEHOLDER": 5
+            }
+            
+            total_penalty = sum(penalties.get(i.get("category", "OTHER"), 5) for i in issues)
+            score = max(0, base_score - total_penalty)
+            
+            return {
+                "file": str(path),
+                "score": score,
+                "issues": issues,
+                "issue_count": len(issues)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error escaneando deuda en {file_path}: {e}")
+            return {"score": 0, "issues": [], "error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

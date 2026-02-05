@@ -41,7 +41,7 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuración de contenedores
 CONTAINER_CONFIG = {
-    "image": "python:3.12-slim",
+    "image": "nikolaik/python-nodejs:python3.12-nodejs22",
     "mem_limit": "512m",
     "memswap_limit": "512m",
     "cpu_period": 100000,
@@ -131,21 +131,17 @@ class MechanicExecutor:
         try:
             self._client = docker.from_env()
             self._client.ping()
-            logger.info("MechanicExecutor conectado a Docker")
+            self._is_available = True
+            self.engine_mode = "HYBRID (Legacy + OpenHands)"
+            logger.info(f"MechanicExecutor conectado a Docker (Modo: {self.engine_mode})")
         except Exception as e:
             logger.warning(f"Docker no disponible: {e}")
             self._client = None
     
     @property
     def is_available(self) -> bool:
-        """Verifica si Docker está disponible."""
-        if self._client is None:
-            return False
-        try:
-            self._client.ping()
-            return True
-        except Exception:
-            return False
+        """Indica si Docker está listo para usarse."""
+        return self._is_available
     
     def _ensure_image(self, image: str = CONTAINER_CONFIG["image"]) -> bool:
         """Asegura que la imagen esté disponible localmente."""
@@ -575,10 +571,281 @@ except Exception as e:
             logger.error(f"Failed to apply pattern: {e}")
             return {"success": False, "error": str(e)}
 
+    async def run_agentic_session(
+        self,
+        task: str,
+        workspace_path: str | None = None,
+        agent_type: str = "CodeActAgent",
+        max_iterations: int = 10,
+    ) -> dict:
+        """
+        [NEW] Ejecuta una sesión agéntica completa usando el motor OpenHands.
+        
+        Capabilities:
+        - Bucle de eventos (Event Stream)
+        - Corrección de errores automática
+        - Persistencia de contexto
+        
+        Args:
+            task: La instrucción de alto nivel (ej: "Arregla los tests")
+            workspace_path: Ruta al directorio de trabajo (default: .ai/workspace)
+            agent_type: Tipo de agente OpenHands (default: CodeActAgent)
+            max_iterations: Límite de pasos del agente
+            
+        Returns:
+            dict: Estado final de la sesión
+        """
+        logger.info(f"Iniciando Sesión Agéntica (OpenHands): '{task}'")
+        
+        if not self.is_available:
+            return {"success": False, "error": "Docker no disponible"}
+
+        # Configuración de entorno Senior: Forzar detección de .NET y generar runtimeconfig estable
+        dotnet_root = os.environ.get("DOTNET_ROOT")
+        if not dotnet_root:
+            potential_paths = [r"C:\Program Files\dotnet"]
+            for p in potential_paths:
+                if os.path.exists(p):
+                    os.environ["DOTNET_ROOT"] = p
+                    os.environ["PATH"] = f"{p};" + os.environ["PATH"]
+                    dotnet_root = p
+                    break
+
+        # Generar runtimeconfig.json para forzar .NET 8 (LTS) y evitar conflictos con Previews (v10)
+        config_path = AI_DIR / "ultragent.runtimeconfig.json"
+        if not config_path.exists():
+            config_data = {
+                "runtimeOptions": {
+                    "tfm": "net8.0",
+                    "framework": {
+                        "name": "Microsoft.NETCore.App",
+                        "version": "8.0.0"
+                    }
+                }
+            }
+            with open(config_path, "w") as f:
+                json.dump(config_data, f, indent=2)
+            logger.info(f"Generado {config_path} para estabilidad de .NET")
+
+        try:
+            # Inicialización manual de pythonnet antes de que OpenHands lo intente
+            import clr_loader
+            from pythonnet import load
+            
+            try:
+                # Intentamos cargar el runtime estable específicamente
+                runtime = clr_loader.get_coreclr(
+                    runtime_config=str(config_path),
+                    dotnet_root=dotnet_root
+                )
+                load(runtime)
+                logger.info("Host de .NET (CoreCLR) inicializado exitosamente via net8.0 config")
+            except Exception as e:
+                logger.warning(f"Fallo en carga manual de .NET, reintentando carga estándar: {e}")
+                # Si falla el manual, OpenHands intentará su propia carga (fallback)
+            
+            # Lazy imports para evitar dependencias duras
+            from openhands.controller.agent_controller import AgentController
+            from openhands.core.schema import AgentState
+            from openhands.runtime.impl.docker.docker_runtime import DockerRuntime
+            
+            # Resolver workspace
+            ws_path = Path(workspace_path) if workspace_path else WORKSPACE_DIR
+            ws_path.mkdir(parents=True, exist_ok=True)
+            
+            logger.info(f"OpenHands Workspace: {ws_path}")
+            
+            # Configuración Senior v1.2.0: Usar OpenHandsConfig para el Runtime
+            from openhands.core.config import OpenHandsConfig
+            from openhands.llm.llm_registry import LLMRegistry
+            from openhands.events import EventStream
+            from openhands.storage.local import LocalFileStore
+            
+            # 1. Preparar Almacenamiento, Configuración y Stream
+            # Crear un subdirectorio para eventos dentro del workspace para evitar colisiones
+            events_path = ws_path / "events"
+            events_path.mkdir(parents=True, exist_ok=True)
+            file_store = LocalFileStore(root=str(events_path))
+            
+            # WORKAROUND Senior: OpenHands v1.2.0 tiene un bug al buscar 'skills' en site-packages
+            # Crearemos un directorio dummy para evitar WinError 3 durante la inicialización del runtime
+            try:
+                import openhands
+                oh_path = Path(openhands.__file__).parent
+                skills_dummy = oh_path.parent / "skills"
+                if not skills_dummy.exists():
+                    skills_dummy.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Creado directorio dummy de skills en: {skills_dummy}")
+            except Exception as e:
+                logger.warning(f"No se pudo crear el directorio dummy de skills: {e}")
+
+            oh_config = OpenHandsConfig()
+            # Forzar el uso de la imagen oficial estable para v1.2.0
+            oh_config.sandbox.runtime_container_image = "ghcr.io/all-hands-ai/runtime:0.12-nikolaik"
+            oh_config.sandbox.force_rebuild_runtime = False
+            oh_config.sandbox.initialize_plugins = True
+            oh_config.workspace_base = str(ws_path)
+            oh_config.workspace_base = str(ws_path)
+            
+            # Inicializar Registro de LLM con Config
+            llm_registry = LLMRegistry(config=oh_config)
+            
+            # EventStream en v1.2.0 requiere file_store
+            event_stream = EventStream(sid="ultragent-session", file_store=file_store)
+            
+            # 2. Iniciar Runtime (El Cuerpo Dockerizado)
+            runtime = DockerRuntime(
+                config=oh_config,
+                event_stream=event_stream,
+                llm_registry=llm_registry,
+            )
+            await runtime.connect()
+            
+            # 3. Inicializar Agente (El Carácter)
+            from openhands.controller.agent import Agent
+            agent_cls = Agent.get_cls(agent_type)
+            # El agente requiere su propia config y el registro de LLM
+            agent_instance = agent_cls(config=oh_config.get_agent_config(agent_type), llm_registry=llm_registry)
+            
+            # 4. Inicializar Controlador (El Cerebro)
+            from openhands.server.services.conversation_stats import ConversationStats
+            conv_stats = ConversationStats()
+            
+            controller = AgentController(
+                agent=agent_instance,
+                event_stream=event_stream,
+                conversation_stats=conv_stats,
+                iteration_delta=max_iterations,
+                sid="ultragent-session",
+                file_store=file_store,
+            )
+            # El controlador se suscribe automáticamente al event_stream si no es un delegado
+            
+            # 3. Hook de Observabilidad (Conectar al HUD/Cortex)
+            trajectory = []
+            
+            async def event_handler(event):
+                # Capturar cada paso del agente
+                if event.source == "agent":
+                    # Acción del agente (Comando, Edición)
+                    trajectory.append(f"🤖 ACT: {event.action}")
+                    logger.info(f"[OH-Agent] {event.action}")
+                elif event.source == "environment":
+                    # Respuesta del entorno (Salida, Error)
+                    # Truncar output largo
+                    content = str(event.content)
+                    preview = content[:100] + "..." if len(content) > 100 else content
+                    trajectory.append(f"🌍 OBS: {preview}")
+            
+            controller.event_stream.subscribe(event_handler)
+            
+            # 4. Ejecutar Tarea
+            logger.info("Delegando control al Agente...")
+            end_state = await controller.start_task(task)
+            
+            # 5. Cerrar Runtime
+            # await runtime.stop() # Mantener vivo? No, cerrar por ahora.
+            
+            success = (end_state.agent_state == AgentState.FINISHED)
+            
+            return {
+                "success": success,
+                "final_state": str(end_state.agent_state),
+                "trajectory": trajectory,
+                "metrics": {
+                    "steps": len(trajectory),
+                    "iterations_used": controller.state.iteration,
+                }
+            }
+            
+        except (ImportError, Exception) as e:
+            # Capturamos ImportError y cualquier otro error de runtime (ej: DotNetMissingError)
+            logger.error(f"OpenHands Engine no disponible: {e}")
+            return {
+                "success": False,
+                "error": f"Agentic Mode Unavailable: {e}",
+                "details": "Ensure Python 3.12+, .NET Runtime (Windows), and 'uv sync' are correct."
+            }
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": str(e)}
+
+    async def heal_node(self, node_id: str, issue_description: str) -> dict:
+        """
+        [NEW] Intenta reparar un nodo usando Inteligencia Sistémica.
+        Integración: Cortex (Memoria) + NeuroArchitect (Contexto) + OpenHands (Agente).
+        """
+        logger.info(f"Iniciando protocolo de curación para: {node_id}")
+        
+        try:
+            # 1. Obtener Contexto Arquitectónico (NeuroArchitect)
+            # Evitar import circular
+            from neuro_architect import get_neuro_architect
+            neuro = get_neuro_architect()
+            
+            # Usar 'bundle' para obtener todo lo necesario
+            has_impact = neuro.analyze_impact(node_id)
+            impact_info = f"Risk Score: {has_impact.risk_score:.1f}, Dependents: {len(has_impact.direct_impact)}"
+            
+            # 2. Consultar Memoria Episódica (Cortex)
+            from cortex import get_cortex
+            cortex = get_cortex()
+            
+            # Buscar si ya hemos arreglado algo similar
+            memories = cortex.get_all_memories() # Idealmente search, pero por ahora filter simple o usar vector search si disponible
+            # Usar Librarian search via Cortex si estuviera expuesto directo, pero simulamos
+            relevant_memories = [m.content for m in memories if "fix" in m.content.lower() or "refactor" in m.content.lower()][:3]
+            
+            memory_context = "\n".join(relevant_memories) if relevant_memories else "No previous fixes found."
+
+            # 3. Construir Prompt de Misión para el Agente
+            prompt = f"""
+MISSION: REFACTOR_CODE
+TARGET: {node_id}
+ISSUE: {issue_description}
+
+CONTEXT:
+{impact_info}
+
+PREVIOUS KNOWLEDGE:
+{memory_context}
+
+INSTRUCTIONS:
+1. Analyze the file {node_id}.
+2. Fix the reported issue ensuring NO functionality is broken.
+3. Run existing tests or create a small validation script.
+4. If successful, exit with success.
+"""
+
+            # 4. Ejecutar Sesión Agéntica
+            session_result = await self.run_agentic_session(
+                task=prompt,
+                max_iterations=10, # Keep it focused
+                agent_type="CodeActAgent"
+            )
+            
+            # 5. Memorizar Resultado (Cortex Loop)
+            if session_result.get("success"):
+                cortex.add_memory(
+                    content=f"Fixed issue '{issue_description}' in {node_id} using automated agent.",
+                    tags=["fix", "auto-healing", node_id],
+                    importance=0.8
+                )
+                logger.info(f"Curación exitosa de {node_id}. Memorizada.")
+            else:
+                logger.warning(f"Fallo en curación de {node_id}.")
+                
+            return session_result
+
+        except Exception as e:
+            logger.error(f"Error en heal_node: {e}")
+            return {"success": False, "error": str(e)}
+
     def get_status(self) -> dict:
         """Retorna estado del Mechanic."""
         return {
             "docker_available": self.is_available,
+            "engine_mode": "HYBRID (Legacy + OpenHands)", # Actualizado
             "image": CONTAINER_CONFIG["image"],
             "limits": {
                 "memory": CONTAINER_CONFIG["mem_limit"],

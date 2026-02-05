@@ -57,6 +57,7 @@ class NeuronState:
     error_rate: float = 0.0
     active_variables: Dict[str, str] = field(default_factory=dict)
     logs: List[str] = field(default_factory=list)
+    fix_attempts: int = 0  # To avoid infinite loops in auto-healing
 
     def to_dict(self) -> dict:
         return {
@@ -65,6 +66,7 @@ class NeuronState:
             "error_rate": self.error_rate,
             "active_variables": self.active_variables,
             "logs": self.logs[-5:],  # Keep last 5 logs
+            "fix_attempts": self.fix_attempts
         }
 
 @dataclass
@@ -100,7 +102,7 @@ class NeuroArchitect:
         logger.info("NeuroArchitect (Hyper-V) online.")
 
     def _initialize_cortex(self):
-        """Inicializa el grafo base usando Vision."""
+        """Inicializa el grafo base usando Vision y enriquece con datos."""
         try:
             logger.info("Building initial neural web...")
             nodes, edges = self._vision.scan_project()
@@ -108,13 +110,97 @@ class NeuroArchitect:
             with self._lock:
                 self._graph = self._vision.build_graph(nodes, edges, hide_stdlib=False)
                 
-                # Inicializar estados vacíos para cada nodo
+                # Inicializar estados
                 for node in self._graph.nodes():
                     self._states[node] = NeuronState()
+                
+                # Enriquecer con Data Flow (Tipos de datos) - Deshabilitado por defecto para velocidad
+                # self._enrich_graph_with_data_flow()
                     
             logger.info(f"Neural web built: {len(self._graph.nodes())} neurons connected.")
         except Exception as e:
             logger.error(f"Failed to initialize cortex: {e}")
+
+    def _enrich_graph_with_data_flow(self):
+        """Usa Librarian para descubrir qué datos viajan por las sinapsis."""
+        try:
+            from librarian import get_librarian
+            librarian = get_librarian()
+            
+            # Mapeo rápido de nodo -> file_path
+            # Asumimos que vision.py etiqueta los nodos con paths si es posible
+            # o intentamos inferir.
+            
+            updates = []
+            
+            for u, v, data in self._graph.edges(data=True):
+                # Si 'u' llama a 'v', queremos saber qué retorna 'v' (input para u)
+                # y qué argumentos toma 'v' (output de u)
+                
+                # Intentamos obtener esqueleto del destino 'v'
+                # Supongamos que v es "modulo.Clase.metodo" o "archivo.py"
+                
+                # Búsqueda heurística en Librarian
+                results = librarian.semantic_search(
+                    query=f"function signature for {v}", 
+                    n_results=1
+                )
+                
+                if results and results[0]['relevance'] > 0.8:
+                    skeleton = results[0]
+                    signature = skeleton.get('signature', '')
+                    
+                    # Parsear firma simple (muy básico)
+                    # def foo(a: int) -> str
+                    ret_type = "Any"
+                    if "->" in signature:
+                        ret_type = signature.split("->")[1].strip().split(":")[0]
+                    
+                    args = "()"
+                    if "(" in signature and ")" in signature:
+                        args = signature[signature.find("("):signature.find(")")+1]
+
+                    updates.append((u, v, {"payload": f"{args} -> {ret_type}"}))
+
+            # Aplicar actualizaciones
+            for u, v, attrs in updates:
+                self._graph[u][v].update(attrs)
+                
+        except Exception as e:
+            logger.warning(f"Data flow enrichment partial failure: {e}")
+
+    def get_compressed_brain_state(self) -> str:
+        """
+        Retorna el estado del cerebro en formato minificado y optimizado para tokens.
+        Diseñado para ser consumido por LLMs (Gemini/Claude).
+        
+        Format (JSON-like compact):
+        N:{id:t,al,er} (Nodes: type, activation, error)
+        E:{s,t,tp} (Edges: source, target, type)
+        """
+        nodes_min = []
+        for n, attrs in self._graph.nodes(data=True):
+            state = self._states.get(n, NeuronState())
+            # Condensar tipo: file->f, function->fn, class->c
+            ntype = attrs.get("node_type", "u")[0] 
+            
+            # Solo incluir nodos activos o con error para ahorrar más?
+            # Por ahora todo, pero compacto.
+            n_data = f"{n}:{ntype}"
+            if state.activation_level > 0: n_data += f":{state.activation_level:.1f}"
+            if state.error_rate > 0: n_data += f":E{state.error_rate:.1f}"
+            nodes_min.append(n_data)
+
+        edges_min = []
+        for u, v, attrs in self._graph.edges(data=True):
+            etype = attrs.get("type", "u")[0] # c=call, i=import
+            edges_min.append(f"{u}>{v}:{etype}")
+
+        return json.dumps({
+            "T": datetime.now().isoformat(), # Timestamp
+            "N": nodes_min, # Nodes
+            "E": edges_min, # Edges
+        }, separators=(',', ':'))
 
     def ingest_telemetry(self, node_name: str, event_type: str, payload: Dict[str, Any]):
         """
@@ -146,9 +232,72 @@ class NeuroArchitect:
                 
             elif event_type == "variable_update":
                 state.active_variables.update(payload)
+
+            elif event_type == "debt_scan":
+                # Actualizar estado de salud basado en escaneo de deuda
+                score = payload.get("score", 100)
+                issue_count = payload.get("issue_count", 0)
+                
+                # Mapear score (0-100) a error_rate (0.0-1.0) inverso
+                # Score 100 -> Error 0.0
+                # Score 0   -> Error 1.0
+                new_error_rate = 1.0 - (score / 100.0)
+                state.error_rate = new_error_rate
+                
+                if issue_count > 0:
+                    state.logs.append(f"DEBT SCAN: {issue_count} issues found (Score: {score})")
+                    # Añadir detalles al log
+                    for issue in payload.get("issues", [])[:3]: # Top 3
+                        state.logs.append(f"[{issue['type']}] L{issue['line']}")
             
             # Persistir estado periódicamente? 
             # Por ahora lo dejamos en memoria para velocidad.
+
+    def get_next_focus(self) -> Dict[str, Any]:
+        """
+        Determina cuál es el siguiente nodo más crítico para atacar.
+        Basado en: Error Rate * Risk Score / (Attempts + 1)
+        """
+        candidates = []
+        
+        # Pre-calcular centralidad si no está cacheada (o usar in-degree simple)
+        try:
+            centrality = nx.degree_centrality(self._graph)
+        except:
+            centrality = {}
+
+        for n in self._graph.nodes():
+            state = self._states.get(n, NeuronState())
+            
+            # Solo considerar nodos con algún problema
+            if state.error_rate > 0.1:
+                # Metrics
+                risk = centrality.get(n, 0.0) * 100 # 0-100 approx
+                health = state.error_rate # 0.0-1.0
+                
+                # Formula de Prioridad:
+                # (Daño * Impacto) / (Intentos + 1) -> Penaliza reintentos fallidos
+                priority = (health * (1 + risk)) / (state.fix_attempts + 1)
+                
+                candidates.append({
+                    "node": n,
+                    "priority": priority,
+                    "reason": f"Error: {health:.2f}, Risk: {risk:.2f}, Attempts: {state.fix_attempts}"
+                })
+        
+        # Ordenar por prioridad descendente
+        candidates.sort(key=lambda x: x["priority"], reverse=True)
+        
+        if not candidates:
+            return {"target": None, "message": "System is healthy."}
+            
+        target = candidates[0]
+        return {
+            "target": target["node"],
+            "priority": target["priority"],
+            "reason": target["reason"],
+            "candidates_count": len(candidates)
+        }
 
     def analyze_impact(self, target_node: str) -> ImpactPrediction:
         """

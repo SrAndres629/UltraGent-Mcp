@@ -107,12 +107,14 @@ class Cortex:
                 memory_id = cursor.lastrowid
                 
         # Indexar en Librarian (ChromaDB)
-        # Usamos un 'file_path' virtual para memorias
         virtual_path = f"memory://{memory_id}"
-        # Nota: El Librarian espera archivos físicos por ahora. 
-        # TODO: Refactorizar librarian para aceptar texto directo.
-        # Por ahora lo guardamos como log de auditoría.
-        logger.info(f"Memoria [{memory_id}] guardada: {content[:50]}...")
+        try:
+            # Ahora usamos la indexación real del Librarian
+            self._librarian.index_memory(str(memory_id), content, tags)
+            logger.info(f"Memoria [{memory_id}] guardada e indexada: {content[:50]}...")
+        except Exception as e:
+            logger.warning(f"No se pudo indexar la memoria {memory_id}: {e}")
+            
         return memory_id
 
     def search_memories(self, query: str, limit: int = 5) -> List[Dict]:

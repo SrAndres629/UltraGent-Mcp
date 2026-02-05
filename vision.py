@@ -538,6 +538,17 @@ class VisionArchitect:
             "config": GRAPH_CONFIG,
         }
 
+    def get_cycles_report(self) -> dict:
+        """Retorna un reporte detallado de ciclos detectados."""
+        nodes, edges = self.scan_project()
+        G = self.build_graph(nodes, edges)
+        cycles = self.find_cycles(G)
+        return {
+            "cycle_count": len(cycles),
+            "cycles": cycles,
+            "impacted_nodes": list(set([n for c in cycles for n in c]))
+        }
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SINGLETON
