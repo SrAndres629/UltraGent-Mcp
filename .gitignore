@@ -1,0 +1,47 @@
+# Dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables (NEVER COMMIT!)
+.env
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# ChromaDB data
+chroma_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+
+# UV
+.python-version
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/

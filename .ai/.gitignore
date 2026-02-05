@@ -1,0 +1,6 @@
+# Ignorar archivos sensibles
+*.log
+tasks.db-wal
+tasks.db-shm
+cache/*
+workspace/*
