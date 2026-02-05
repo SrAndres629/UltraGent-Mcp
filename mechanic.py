@@ -31,7 +31,8 @@ from docker.errors import ContainerError, ImageNotFound, APIError
 
 PROJECT_ROOT = Path(__file__).parent
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
-WORKSPACE_DIR = AI_DIR / "workspace"
+OPENHANDS_WORKSPACE = os.getenv("OPENHANDS_WORKSPACE")
+WORKSPACE_DIR = Path(OPENHANDS_WORKSPACE) if OPENHANDS_WORKSPACE else AI_DIR / "workspace"
 LOGS_DIR = AI_DIR / "logs" / "mechanic"
 
 # Crear directorios
@@ -47,7 +48,8 @@ CONTAINER_CONFIG = {
     "cpu_quota": 50000,  # 50% de 1 CPU
     "network_disabled": True,
     "auto_remove": True,
-    "read_only": False,  # Necesario para pip install
+    "read_only": False,
+    "security_opt": ["no-new-privileges"],
 }
 
 DEFAULT_TIMEOUT = 30  # segundos
@@ -214,6 +216,7 @@ class MechanicExecutor:
         requirements: Optional[list[str]] = None,
         timeout: int = DEFAULT_TIMEOUT,
         working_dir: Optional[str] = None,
+        allow_network: bool = False,
     ) -> ExecutionResult:
         """
         Ejecuta un script Python en un contenedor aislado.
@@ -223,6 +226,7 @@ class MechanicExecutor:
             requirements: Lista de paquetes pip a instalar
             timeout: Tiempo máximo de ejecución en segundos
             working_dir: Directorio de trabajo (debe estar en .ai/workspace/)
+            allow_network: Permitir acceso a red (para cloning/install)
             
         Returns:
             ExecutionResult con stdout, stderr, exit_code
@@ -308,13 +312,15 @@ except Exception as e:
             # Configurar volúmenes
             volumes = {}
             if working_dir and Path(working_dir).exists():
-                # Validar que esté en workspace
+                # Validar que esté en workspace o OpenHands
                 wd_path = Path(working_dir).resolve()
                 ws_path = WORKSPACE_DIR.resolve()
-                if str(wd_path).startswith(str(ws_path)):
+                
+                # Permitir si está en workspace definido
+                if str(wd_path).startswith(str(ws_path)) or (OPENHANDS_WORKSPACE and str(wd_path).startswith(os.path.abspath(OPENHANDS_WORKSPACE))):
                     volumes[str(wd_path)] = {
                         "bind": "/workspace",
-                        "mode": "ro",
+                        "mode": "rw",  # Changed to RW for OpenHands interaction
                     }
             
             # Montar script
@@ -333,7 +339,7 @@ except Exception as e:
                 memswap_limit=CONTAINER_CONFIG["memswap_limit"],
                 cpu_period=CONTAINER_CONFIG["cpu_period"],
                 cpu_quota=CONTAINER_CONFIG["cpu_quota"],
-                network_disabled=CONTAINER_CONFIG["network_disabled"],
+                network_disabled=not allow_network,
                 auto_remove=False,  # Necesitamos logs primero
                 detach=True,
                 environment={},  # Sin variables del host
@@ -471,6 +477,104 @@ except Exception as e:
             working_dir=str(path.parent),
         )
     
+    def clone_repo(self, repo_url: str, branch: Optional[str] = None) -> dict:
+        """
+        Clona un repositorio en un directorio efímero seguro.
+        
+        Usa un contenedor con acceso a red temporal para git clone.
+        
+        Args:
+            repo_url: URL HTTPS del repositorio
+            branch: Rama opcional
+            
+        Returns:
+            dict: {success, local_path, error}
+        """
+        if not self.is_available:
+            return {"success": False, "error": "Docker no disponible"}
+            
+        # Generar ID único para el clone path
+        clone_id = uuid.uuid4().hex[:8]
+        clone_dir = WORKSPACE_DIR / "clones" / clone_id
+        clone_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"Clonando {repo_url} en {clone_dir}...")
+        
+        # Script para clonar
+        branch_arg = f"--branch {branch}" if branch else ""
+        clone_script = f"""
+import subprocess
+import sys
+
+try:
+    cmd = ["git", "clone", "{repo_url}", ".", "--depth", "1", {branch_arg}]
+    # Filtrar argumentos vacíos
+    cmd = [c for c in cmd if c]
+    
+    print(f"Executing: {{' '.join(cmd)}}")
+    subprocess.run(cmd, check=True, stdout=sys.stdout, stderr=sys.stderr)
+    print("Clone successful")
+except Exception as e:
+    print(f"Clone error: {{e}}", file=sys.stderr)
+    sys.exit(1)
+"""
+        # Ejecutar con red habilitada
+        result = self.run_in_sandbox(
+            script=clone_script,
+            requirements=["gitpython"], # Asegurar que gitpython (o git cli) este disponible si usamos lib, pero aqui usamos subprocess git cli
+            timeout=120,
+            working_dir=str(clone_dir),
+            allow_network=True
+        )
+        
+        if result.success:
+            return {
+                "success": True,
+                "local_path": str(clone_dir),
+                "clone_id": clone_id
+            }
+        else:
+            # Limpiar si falló
+            import shutil
+            try:
+                shutil.rmtree(clone_dir)
+            except:
+                pass
+            return {"success": False, "error": f"Clone failed: {result.stderr}"}
+
+    def apply_external_pattern(self, code_block: str, target_file: str) -> dict:
+        """
+        Aplica un patrón de código externo (adaptado) al workspace.
+        
+        Args:
+            code_block: Código Python a escribir
+            target_file: Ruta relativa al workspace
+            
+        Returns:
+            dict: Resultado de la operación
+        """
+        try:
+            full_path = WORKSPACE_DIR / target_file
+            
+            # Asegurar que está en el workspace
+            if not str(full_path.resolve()).startswith(str(WORKSPACE_DIR.resolve())):
+                return {"success": False, "error": "Security: Target file outside workspace"}
+            
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Escribir directamente (asumiendo que Mechanic corre con permisos)
+            # Si se requiere sudo/docker write, usar run_in_sandbox
+            full_path.write_text(code_block, encoding="utf-8")
+            
+            return {
+                "success": True, 
+                "path": str(full_path),
+                "bytes_written": len(code_block)
+            }
+        except Exception as e:
+            logger.error(f"Failed to apply pattern: {e}")
+            return {"success": False, "error": str(e)}
+
     def get_status(self) -> dict:
         """Retorna estado del Mechanic."""
         return {

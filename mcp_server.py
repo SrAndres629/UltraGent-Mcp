@@ -796,6 +796,34 @@ async def benchmark_with_github(
 
 
 @mcp.tool()
+async def strategic_consultant(goal: str) -> dict:
+    """
+    Realiza consultoría estratégica proactiva para una meta de desarrollo.
+    
+    Orquesta:
+    1. Búsqueda Universal (Docs, StackOverflow, GitHub)
+    2. Análisis de "Gold Standards"
+    3. Recomendación de Arquitectura (Clonar vs Construir)
+    
+    Args:
+        goal: Meta o tarea a investigar (ej: "Implementar autenticación JWT")
+        
+    Returns:
+        dict: Reporte con referencias, recomendación y veredicto.
+    """
+    logger.info(f"strategic_consultant invocado: {goal}")
+    try:
+        from evolution import get_evolution
+        evolution = get_evolution()
+        
+        report = await evolution.proactive_research(goal)
+        return report.to_dict()
+    except Exception as e:
+        logger.error(f"Error en strategic_consultant: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
 def get_scout_status() -> dict:
     """
     Retorna el estado del Scout.
@@ -817,6 +845,7 @@ def get_scout_status() -> dict:
     except Exception as e:
         logger.error(f"Error en get_scout_status: {e}")
         return {"error": str(e)}
+
 
 
 @mcp.tool()

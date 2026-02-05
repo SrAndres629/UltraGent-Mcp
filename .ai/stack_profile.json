@@ -1,0 +1,17 @@
+{
+  "project_name": "Ultragent MCP",
+  "core_frameworks": [
+    "fastmcp",
+    "pydantic"
+  ],
+  "libraries": [
+    "chromadb",
+    "httpx",
+    "docker",
+    "tree-sitter"
+  ],
+  "constraints": {
+    "language": "python",
+    "min_stars": 100
+  }
+}

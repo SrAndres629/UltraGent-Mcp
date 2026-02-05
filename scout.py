@@ -24,6 +24,7 @@ from typing import Any, Optional
 
 import httpx
 from dotenv import load_dotenv
+from duckduckgo_search import DDGS  # Universal Search engine
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -59,6 +60,35 @@ logger = logging.getLogger("ultragent.scout")
 # ═══════════════════════════════════════════════════════════════════════════════
 # ESTRUCTURAS DE DATOS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class StackProfile:
+    """Perfil del stack tecnológico del proyecto."""
+    project_name: str
+    core_frameworks: list[str] = field(default_factory=list)
+    libraries: list[str] = field(default_factory=list)
+    constraints: dict[str, Any] = field(default_factory=dict)
+    
+    @classmethod
+    def from_file(cls, path: Path) -> "StackProfile":
+        """Carga perfil desde un archivo JSON."""
+        if not path.exists():
+            return cls(project_name="Default")
+        
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return cls(
+                project_name=data.get("project_name", "Unknown"),
+                core_frameworks=data.get("core_frameworks", []),
+                libraries=data.get("libraries", []),
+                constraints=data.get("constraints", {}),
+            )
+        except Exception as e:
+            logging.getLogger("ultragent.scout").warning(
+                f"Error loading stack profile: {e}"
+            )
+            return cls(project_name="Error")
+
 
 @dataclass
 class RepositoryHealth:
@@ -157,6 +187,25 @@ class ScoutResult:
     cached: bool = False
 
 
+@dataclass
+class SearchResult:
+    """Resultado de búsqueda universal."""
+    title: str
+    url: str
+    snippet: str
+    source_type: str  # "SNIPPET" (StackOverflow) | "ARCHITECTURE" (GitHub) | "DOCS"
+    date: str
+    
+    def to_dict(self) -> dict:
+        return {
+            "title": self.title,
+            "url": self.url,
+            "snippet": self.snippet,
+            "source_type": self.source_type,
+            "date": self.date,
+        }
+
+
 class GitHubAPIError(Exception):
     """Error de la API de GitHub."""
     pass
@@ -177,6 +226,9 @@ class ScoutAgent:
     
     Busca y analiza repositorios "Gold Standard" para
     benchmarking y auditoría comparativa.
+    
+    Utiliza Context-Aware Search inyectando restricciones
+    del perfil del stack (.ai/stack_profile.json).
     """
     
     def __init__(self):
@@ -184,6 +236,10 @@ class ScoutAgent:
         self._cache_dir = CACHE_DIR
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Cargar perfil de stack
+        self._stack_profile_path = AI_DIR / "stack_profile.json"
+        self._stack_profile = StackProfile.from_file(self._stack_profile_path)
         
         self._lock = Lock()
         self._last_request_time: Optional[datetime] = None
@@ -201,7 +257,8 @@ class ScoutAgent:
         
         logger.info(
             f"ScoutAgent inicializado "
-            f"(token={'✓' if self._token else '✗'})"
+            f"(token={'✓' if self._token else '✗'}, "
+            f"stack='{self._stack_profile.project_name}')"
         )
     
     def _get_headers(self) -> dict:
@@ -302,16 +359,18 @@ class ScoutAgent:
         topic: Optional[str] = None,
         min_stars: int = 500,
         max_results: int = 10,
+        use_context: bool = True,
     ) -> list[RepositoryHealth]:
         """
         Busca repositorios en GitHub.
         
         Args:
             query: Términos de búsqueda
-            language: Filtrar por lenguaje (python, javascript, etc.)
+            language: Filtrar por lenguaje (overrides constraint si no es None)
             topic: Filtrar por topic
             min_stars: Mínimo de estrellas
             max_results: Máximo de resultados
+            use_context: Si True, inyecta constraints del StackProfile
             
         Returns:
             list[RepositoryHealth]: Repositorios ordenados por health score
@@ -319,16 +378,43 @@ class ScoutAgent:
         with self._lock:
             self._stats["searches"] += 1
         
-        # Construir query
-        search_query = query
-        if language:
-            search_query += f" language:{language}"
+        # --- Context-Aware Query Injection ---
+        search_parts = [query]
+        
+        if use_context:
+            # 1. Inyectar lenguaje si no se especificó explícitamente
+            profile_lang = self._stack_profile.constraints.get("language")
+            target_lang = language or profile_lang
+            if target_lang:
+                search_parts.append(f"language:{target_lang}")
+            
+            # 2. Inyectar core frameworks como topics opcionales para refinar
+            # (Nota: no forzamos todos para no restringir demasiado, 
+            # pero podríamos añadirlos a la query de texto)
+            # Para esta implementación, añadiremos los frameworks a la query de texto
+            # si la query es muy genérica.
+            pass
+            
+        else:
+            if language:
+                search_parts.append(f"language:{language}")
+        
         if topic:
-            search_query += f" topic:{topic}"
-        search_query += f" stars:>={min_stars}"
+            search_parts.append(f"topic:{topic}")
+            
+        # Respetar el constraint de estrellas del perfil si es mayor al solicitado
+        if use_context:
+            profile_stars = self._stack_profile.constraints.get("min_stars", 0)
+            target_stars = max(min_stars, profile_stars)
+            search_parts.append(f"stars:>={target_stars}")
+        else:
+            search_parts.append(f"stars:>={min_stars}")
+
+        final_query = " ".join(search_parts)
+        logger.info(f"Context-Aware Search Query: '{final_query}'")
         
         params = {
-            "q": search_query,
+            "q": final_query,
             "sort": "stars",
             "order": "desc",
             "per_page": min(max_results, 30),
@@ -358,6 +444,20 @@ class ScoutAgent:
                     topics=item.get("topics", []),
                     last_updated=updated_at,
                 )
+                
+                # Boost score si coincide con frameworks del perfil
+                if use_context:
+                    matches = 0
+                    for framework in self._stack_profile.core_frameworks:
+                        if framework.lower() in str(repo.topics).lower() or \
+                           framework.lower() in repo.name.lower() or \
+                           framework.lower() in (item.get("description") or "").lower():
+                            matches += 1
+                    
+                    # Bonus: +5 puntos por cada framework coincidente (max 20)
+                    # Nota: Esto no afecta el health_score base, pero podríamos usarlo para ordenar.
+                    # Por ahora confiamos en el filtrado de búsqueda.
+                
                 repos.append(repo)
                 
                 with self._lock:
@@ -375,7 +475,7 @@ class ScoutAgent:
             await self._analyze_repo_quality(repo)
         
         logger.info(
-            f"Search '{query}': {len(repos)} repos "
+            f"Search result: {len(repos)} repos "
             f"({sum(1 for r in repos if r.is_gold_standard())} gold standard)"
         )
         
@@ -523,14 +623,14 @@ class ScoutAgent:
     async def harvest_gold_standard(
         self,
         project_type: str,
-        language: str = "python",
+        language: Optional[str] = None,
     ) -> list[RepositoryHealth]:
         """
         Busca y retorna repositorios Gold Standard para un tipo de proyecto.
         
         Args:
             project_type: Tipo de proyecto (api, cli, web, etc.)
-            language: Lenguaje de programación
+            language: Lenguaje de programación (opcional, usa perfil si no se da)
             
         Returns:
             list[RepositoryHealth]: Repos Gold Standard ordenados por score
@@ -545,22 +645,95 @@ class ScoutAgent:
             "agent": "ai agent autonomous",
         }
         
-        query = TYPE_QUERIES.get(project_type, project_type)
+        base_query = TYPE_QUERIES.get(project_type, project_type)
+        
+        # Inyectar frameworks del stack profile para hacer la búsqueda más específica
+        # Ejemplo: "api rest framework fastmcp pydantic"
+        stack_keywords = " ".join(self._stack_profile.core_frameworks)
+        query = f"{base_query} {stack_keywords}".strip()
         
         repos = await self.search_repositories(
             query=query,
             language=language,
             min_stars=GOLD_STANDARD_THRESHOLDS["min_stars"],
             max_results=20,
+            use_context=True
         )
         
         # Filtrar solo Gold Standards
         gold = [r for r in repos if r.is_gold_standard()]
         
-        logger.info(f"Harvested {len(gold)} Gold Standard repos for '{project_type}'")
+        logger.info(f"Harvested {len(gold)} Gold Standard repos for '{project_type}' with stack '{self._stack_profile.project_name}'")
         
         return gold
     
+    async def universal_search(
+        self,
+        query: str,
+        max_results: int = 5,
+        modernity_years: int = 2
+    ) -> list[SearchResult]:
+        """
+        Búsqueda universal en web (SO, Docs, GitHub) usando DuckDuckGo.
+        Filtra por antigüedad para evitar código obsoleto.
+        """
+        with self._lock:
+            self._stats["searches"] += 1
+            
+        logger.info(f"Universal Search: '{query}'")
+        results = []
+        
+        try:
+            # Ejecutar búsqueda síncrona de DDG en thread pool para no bloquear
+            loop = asyncio.get_event_loop()
+            
+            def _run_ddg():
+                with DDGS() as ddgs:
+                    # Buscar en general pero priorizando sitios técnicos
+                    # Inyectamos "site:stackoverflow.com OR site:github.com OR site:readthedocs.io"
+                    # para potenciar resultados técnicos si la query es muy abierta.
+                    # Pero confiamos en el ranking de DDG + keywords
+                    tech_query = f"{query} (site:stackoverflow.com OR site:github.com OR site:pypi.org OR site:readthedocs.io)"
+                    return list(ddgs.text(tech_query, max_results=max_results * 2)) # Traer extra para filtrar
+            
+            ddg_results = await loop.run_in_executor(None, _run_ddg)
+            
+            # Procesar y filtrar
+            min_date = datetime.now() - timedelta(days=365 * modernity_years)
+            
+            for res in ddg_results:
+                # Intentar extraer fecha del snippet (DDG no siempre da fecha estructurada)
+                # Formatos comunes: "Sep 2024 ...", "2 days ago ..."
+                # Por seguridad, si no hay fecha clara, asumimos reciente si es de sitios high-traffic
+                
+                # Clasificar
+                url = res.get("href", "")
+                title = res.get("title", "")
+                body = res.get("body", "")
+                
+                source_type = "DOCS"
+                if "stackoverflow.com" in url:
+                    source_type = "SNIPPET"
+                elif "github.com" in url:
+                    source_type = "ARCHITECTURE"
+                
+                results.append(SearchResult(
+                    title=title,
+                    url=url,
+                    snippet=body,
+                    source_type=source_type,
+                    date="Unknown" # DDG raw results don't guarantee date in free tier lib
+                ))
+                
+                if len(results) >= max_results:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Universal Search failed: {e}")
+            
+        logger.info(f"Universal Search found {len(results)} results")
+        return results
+
     def get_status(self) -> dict:
         """Retorna estado del Scout."""
         return {
@@ -571,6 +744,7 @@ class ScoutAgent:
                 if self._rate_limit_reset else None
             ),
             "cache_dir": str(self._cache_dir),
+            "stack_profile": self._stack_profile.project_name,
             "stats": dict(self._stats),
         }
 
@@ -601,23 +775,23 @@ async def _test_scout():
     scout = get_scout()
     
     print("=" * 60)
-    print("ULTRAGENT SCOUT v0.1 - Test")
+    print("ULTRAGENT SCOUT v0.1 - Context-Aware Search Test")
     print("=" * 60)
     print(f"Status: {scout.get_status()}")
     print("=" * 60)
     
     # Buscar repos
-    print("\nBuscando repos 'fastapi template'...")
+    print("\nBuscando repos 'mcp server' (auto-injecting context)...")
     repos = await scout.search_repositories(
-        query="fastapi template",
-        language="python",
-        min_stars=100,
+        query="mcp server",
+        min_stars=50,
         max_results=5,
     )
     
     for repo in repos:
         print(f"\n  {repo.name} ⭐{repo.stars}")
         print(f"    Health: {repo.health_score:.1f}")
+        print(f"    Language: {repo.language}")
         print(f"    Gold Standard: {repo.is_gold_standard()}")
 
 

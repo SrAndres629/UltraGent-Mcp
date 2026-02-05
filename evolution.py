@@ -21,6 +21,11 @@ from enum import Enum
 from pathlib import Path
 from threading import Lock
 from typing import Any, Optional
+import time
+
+from librarian import CodeLibrarian
+from router import OmniRouter
+from scout import get_scout, SearchResult
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -254,6 +259,32 @@ class AuditReport:
         return path
 
 
+@dataclass
+class GapAnalysis:
+    """Análisis de brechas entre implementación local y remota."""
+    feature_name: str
+    local_score: float
+    remote_score: float
+    missing_elements: list[str]
+    structural_differences: list[str]
+    adaptation_plan: str
+
+
+@dataclass
+class ResearchReport:
+    """Reporte de investigación proactiva."""
+    query: str
+    references: list[SearchResult]
+    recommendation: str
+    
+    def to_dict(self) -> dict:
+        return {
+            "query": self.query,
+            "references": [r.to_dict() for r in self.references],
+            "recommendation": self.recommendation
+        }
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # EVOLUTION AUDITOR
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -277,6 +308,9 @@ class EvolutionAuditor:
             "approvals": 0,
             "rejections": 0,
         }
+        
+        self.router = OmniRouter() # Instancia de router
+        self.librarian = CodeLibrarian() # Integración con Librarian
         
         logger.info("EvolutionAuditor inicializado")
     
@@ -320,6 +354,208 @@ class EvolutionAuditor:
         except Exception as e:
             logger.error(f"Error calling router: {e}")
             return {"error": str(e)}
+
+    async def analyze_gap(self, local_code: str, remote_code: str, feature_context: str) -> GapAnalysis:
+        """
+        Analiza la brecha entre una implementación local y una remota (Gold Standard).
+        """
+        prompt = f"""
+        Actúa como un Arquitecto de Software Senior realizando un Gap Analysis.
+        Compararás una implementación local con un Gold Standard remoto para la funcionalidad '{feature_context}'.
+        
+        LOCAL CODE:
+        ```python
+        {local_code[:2000]}
+        ```
+        
+        REMOTE GOLD STANDARD:
+        ```python
+        {remote_code[:2000]}
+        ```
+        
+        Analiza:
+        1. Qué elementos estructurales faltan en local.
+        2. Diferencias en manejo de errores, typing y patrones.
+        3. Puntuación comparativa (0-10) para cada un.
+        
+        Responde estrictamente en JSON:
+        {{
+            "local_score": float,
+            "remote_score": float,
+            "missing_elements": ["elem1", "elem2"],
+            "structural_differences": ["diff1", "diff2"],
+            "adaptation_plan": "Pasos para adaptar lo mejor del remoto al local"
+        }}
+        """
+        
+        try:
+            response = await self.router.route_task(
+                task_type="coding", # Usar modelo de código fuerte
+                payload=prompt,
+                system_prompt="Eres un experto en análisis de diferencias de código."
+            )
+            
+            content = response.get("content", "{}")
+            # Limpieza básica de markdown json
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0]
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0]
+                
+            data = json.loads(content)
+            
+            return GapAnalysis(
+                feature_name=feature_context,
+                local_score=data.get("local_score", 0.0),
+                remote_score=data.get("remote_score", 0.0),
+                missing_elements=data.get("missing_elements", []),
+                structural_differences=data.get("structural_differences", []),
+                adaptation_plan=data.get("adaptation_plan", "")
+            )
+            
+        except Exception as e:
+            logger.error(f"Error en Gap Analysis: {e}")
+            return GapAnalysis("Error", 0, 0, [], [], str(e))
+
+    async def adapt_code(self, remote_code: str, target_file: str) -> str:
+        """
+        Adapta código remoto para que encaje en el proyecto local.
+        Usa el contexto del archivo destino para mantener el estilo.
+        """
+        # Intentar leer el archivo destino para tener contexto de estilo
+        local_context = ""
+        try:
+            path = Path(target_file)
+            if path.exists():
+                local_context = path.read_text(encoding="utf-8")[:1000]
+        except:
+            pass
+
+        prompt = f"""
+        Actúa como un Ingeniero de Adaptación de Código.
+        Tu tarea es reescribir el siguiente CÓDIGO REMOTO para que se integre perfectamente en nuestro proyecto existente.
+        
+        CONTEXTO LOCAL (Estilo, imports, stack):
+        ```python
+        {local_context}
+        ```
+        
+        CÓDIGO REMOTO A ADAPTAR:
+        ```python
+        {remote_code}
+        ```
+        
+        Instrucciones:
+        1. Mantén la lógica robusta del remoto.
+        2. Usa las librerías y patrones del contexto local (ej: si usamos Pydantic v2, úsalo).
+        3. Elimina dependencias raras no presentes en el local.
+        4. Asegura docstrings en español.
+        5. Retorna SOLO el código Python adaptado.
+        """
+        
+        response = await self.router.route_task(
+            task_type="coding",
+            payload=prompt,
+            system_prompt="Escribe código Python production-ready adaptado al stack existente."
+        )
+        
+        adapted_code = response.get("content", "")
+        # Limpiar bloques de código
+        if "```python" in adapted_code:
+            adapted_code = adapted_code.split("```python")[1].split("```")[0]
+        elif "```" in adapted_code:
+            adapted_code = adapted_code.split("```")[1].split("```")[0]
+            
+        return adapted_code.strip()
+
+    async def proactive_research(self, task_description: str) -> ResearchReport:
+        """
+        Investiga proactivamente referencias externas para una tarea.
+        
+        Args:
+            task_description: Descripción a investigar
+            
+        Returns:
+            ResearchReport con referencias y recomendación inicial.
+        """
+        scout = get_scout()
+        
+        # 1. Búsqueda Universal
+        results = await scout.universal_search(
+            query=task_description,
+            max_results=3,
+            modernity_years=2
+        )
+        
+        if not results:
+             return ResearchReport(task_description, [], "No relevant external references found.")
+             
+        # 2. Análisis preliminar de recomendación
+        snippets = "\n\n".join([f"Source: {r.url}\nType: {r.source_type}\n{r.snippet[:500]}..." for r in results])
+        
+        prompt = f"""
+        Actúa como un Consultor Estratégico de Software.
+        Analiza estos resultados de búsqueda para la tarea: "{task_description}"
+        
+        RESULTADOS:
+        {snippets}
+        
+        Dictamina si debemos:
+        1. CLONAR_ADAPTAR: Si hay soluciones robustas existentes (GitHub).
+        2. COPIAR_SNIPPET: Si es un problema puntual resuelto en SO.
+        3. CONSTRUIR_CERO: Si no hay buenas referencias.
+        
+        Tu respuesta debe ser una recomendación ejecutiva de 2 líneas.
+        """
+        
+        response = await self.router.route_task(
+            task_type="strategic",
+            payload=prompt
+        )
+        
+        recommendation = response.get("content", "Review references manually.").strip()
+        
+        return ResearchReport(task_description, results, recommendation)
+
+    async def compare_and_recommend(self, local_code: str, external_ref: str) -> dict:
+        """
+        Compara código local con una referencia externa y recomienda acción.
+        
+        Args:
+            local_code: Implementación actual (o vacía)
+            external_ref: Código o URL referencia
+            
+        Returns:
+            dict: Reporte diferencial con Verdict, Advantages, AdaptationCost
+        """
+        prompt = f"""
+        Actúa como Senior Architect.
+        Compara la implementación Local vs Referencia Externa.
+        
+        LOCAL:
+        {local_code[:1000] if local_code else "(No implemented yet)"}
+        
+        REF EXTERNA:
+        {external_ref[:2000]}
+        
+        Genera un JSON con:
+        - "advantages_ref": Lista de ventajas de la referencia.
+        - "adaptation_cost": Estimación de esfuerzo (Low/Medium/High).
+        - "verdict": "ADOPT_REF" o "KEEP_LOCAL".
+        - "reasoning": Explicación breve.
+        """ 
+        
+        result = await self.router.route_task("strategic", prompt)
+        
+        # Simple JSON extract
+        content = result.get("content", "{}")
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+            
+        try:
+             return json.loads(content)
+        except:
+             return {"error": "Failed to parse analysis", "raw": content}
     
     async def _fallback_analysis(self, prompt: str) -> dict:
         """Análisis fallback sin LLM externo."""

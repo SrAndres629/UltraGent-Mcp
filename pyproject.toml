@@ -23,6 +23,7 @@ dependencies = [
     "tree-sitter-javascript>=0.25.0",
     "tree-sitter-python>=0.25.0",
     "watchdog>=4.0.0",
+    "duckduckgo-search>=5.0.0",
 ]
 
 [project.optional-dependencies]
