@@ -29,7 +29,7 @@ from fastmcp import FastMCP
 # CONFIGURACIÓN DE PATHS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = Path(__file__).parent
+PROJECT_ROOT = Path.cwd() # Runs in context of the target project
 load_dotenv(PROJECT_ROOT / ".env")
 
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
@@ -514,28 +514,32 @@ async def test_code_securely(
 async def run_agentic_task(
     task: str,
     target_directory: str,
-    max_steps: int = 15,
-    agent_type: str = "CodeActAgent"
+    max_steps: int = 10,  # Reduced for native safety
+    agent_type: str = "NativeGemini" # Updated default
 ) -> dict:
     """
-    MISIÓN AGÉNTICA: Delegación autónoma a OpenHands Engine.
+    MISIÓN AGÉNTICA: Ejecución autómoma nativa (Ultragent Loop).
     
-    El agente operará dentro de un sandbox Docker con acceso al sistema de archivos,
-    terminal y capacidad de auto-corrección para resolver tareas complejas.
+    El agente usa Gemini Flash (Free Tier) para planificar y ejecutar tareas
+    directamente en el sistema (sin Docker overhead).
     
     Args:
         task: Descripción de la misión (ej: "Optimizar el sistema de logs")
         target_directory: Directorio raíz del proyecto (absoluto)
-        max_steps: Límite de iteraciones (default: 15)
+        max_steps: Límite de iteraciones (default: 10)
     """
-    logger.info(f"run_agentic_task: delegando '{task[:50]}'")
+    logger.info(f"run_agentic_task (Native): '{task[:50]}'")
     try:
         from mechanic import get_mechanic
         mechanic = get_mechanic()
-        return await mechanic.run_agentic_session(
-            task=task, workspace_path=target_directory, 
-            max_iterations=max_steps, agent_type=agent_type
-        )
+        
+        if mechanic is None:
+             return {"success": False, "error": "Mechanic no inicializado (Falta SDK o API Key)"}
+
+        # Ejecutar bucle nativo
+        result = await mechanic.run_task(task, max_steps=max_steps)
+        return {"success": True, "result": result}
+        
     except Exception as e:
         logger.error(f"Error en run_agentic_task: {e}")
         return {"success": False, "error": str(e)}

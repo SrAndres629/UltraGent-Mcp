@@ -27,7 +27,7 @@ from librarian import get_librarian
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = Path(__file__).parent
+PROJECT_ROOT = Path.cwd() # Isolate memory per project (User Request)
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
 CORTEX_DB = AI_DIR / "cortex.db"
 
@@ -119,9 +119,13 @@ class Cortex:
 
     def search_memories(self, query: str, limit: int = 5) -> List[Dict]:
         """Busca memorias relacionadas por semántica (vía Librarian)."""
-        # Por ahora el Librarian busca en esqueletos de código.
-        # Necesitaremos una colección 'memories' en ChromaDB.
-        return []
+        results = self._librarian.semantic_search(
+            query=query, 
+            n_results=limit, 
+            node_type="memory"
+        )
+        # Enriquecer con datos de SQLite si es necesario
+        return results
 
     def get_all_memories(self) -> list[Memory]:
         """Retorna todas las memorias guardadas."""

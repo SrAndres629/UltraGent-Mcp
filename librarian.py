@@ -18,17 +18,17 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from threading import Lock
-from datetime import datetime
-from pathlib import Path
-from threading import Lock
-from typing import Any, Optional, List, Dict
+PROJECT_ROOT = Path.cwd() # Isolate storage per project
+CHROMA_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai") / "chroma"
+SKELETON_COLLECTION = "code_skeletons"
+FULLCODE_COLLECTION = "full_code"
 import math
 
 import chromadb
 from chromadb.config import Settings
 # from sentence_transformers import SentenceTransformer # Lazy loaded
+from rank_bm25 import BM25Okapi
+import numpy as np
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PATRONES DE DEUDA TÉCNICA
@@ -440,9 +440,33 @@ class CodeLibrarian:
             "skeletons_indexed": 0,
             "queries_executed": 0,
         }
+
+        # BM25 State
+        self._bm25: Optional[BM25Okapi] = None
+        self._bm25_corpus: List[str] = []
+        self._bm25_ids: List[str] = []
         
         logger.info(f"CodeLibrarian inicializado en {self._persist_dir}")
     
+    def _build_bm25(self):
+        """Reconstruye el índice BM25 desde ChromaDB."""
+        logger.info("Reconstruyendo índice BM25 (Hybrid Search)...")
+        try:
+            # Obtener todos los documentos
+            result = self._skeleton_collection.get()
+            self._bm25_ids = result["ids"]
+            self._bm25_corpus = result["documents"]
+            
+            # Tokenización simple para código
+            tokenized_corpus = [doc.lower().split() for doc in self._bm25_corpus]
+            self._bm25 = BM25Okapi(tokenized_corpus)
+            logger.info(f"Índice BM25 listo: {len(tokenized_corpus)} documentos")
+        except Exception as e:
+            logger.error(f"Error construyendo BM25: {e}")
+            self._bm25 = None
+            self._bm25_corpus = []
+            self._bm25_ids = []
+
     def _get_embedder(self) -> Any:
         """Lazy-load del modelo de embeddings con GPU."""
         if self._embedder is None:
@@ -567,6 +591,34 @@ class CodeLibrarian:
             logger.error(f"Error indexando {file_path}: {e}")
             return {"success": False, "error": str(e), "file": str(path)}
     
+    def index_memory(self, memory_id: str, content: str, tags: list[str]) -> bool:
+        """Indexa un átomo de memoria en ChromaDB."""
+        try:
+             embedder = self._get_embedder()
+             embedding = embedder.encode(
+                [content],
+                batch_size=1,
+                show_progress_bar=False,
+                convert_to_numpy=True
+             )
+             
+             self._skeleton_collection.add(
+                 ids=[f"memory:{memory_id}"],
+                 embeddings=embedding.tolist(),
+                 documents=[content],
+                 metadatas=[{
+                     "node_type": "memory",
+                     "name": f"Memory {memory_id}",
+                     "file_path": "cortex.db", # Virtual path
+                     "tags": ",".join(tags),
+                     "indexed_at": datetime.now().isoformat()
+                 }]
+             )
+             return True
+        except Exception as e:
+             logger.error(f"Error indexando memoria: {e}")
+             return False
+
     def _remove_file_vectors(self, file_path: str) -> int:
         """Elimina vectores de un archivo específico."""
         try:
@@ -584,6 +636,8 @@ class CodeLibrarian:
         except Exception as e:
             logger.error(f"Error eliminando vectores: {e}")
             return 0
+        finally:
+             self._bm25 = None # Invalidate BM25 index
     
     def semantic_search(
         self,
@@ -669,7 +723,181 @@ class CodeLibrarian:
             return formatted
             
         except Exception as e:
-            logger.error(f"Error en búsqueda semántica: {e}")
+            logger.error(f"Fallo en Hybrid Search: {e}")
+            return []
+
+    def semantic_search(
+        self,
+        query: str,
+        n_results: int = 5,
+        language: Optional[str] = None,
+        node_type: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Búsqueda Híbrida (Vector + Keyword) con Reciprocal Rank Fusion (RRF).
+        """
+        try:
+            # 1. Asegurar índice BM25
+            if self._bm25 is None:
+                self._build_bm25()
+
+            # 2. Vector Search (Dense)
+            vector_results = self._vector_search(query, n_results=n_results * 2, language=language, node_type=node_type)
+            
+            # 3. Keyword Search (Sparse)
+            bm25_results = []
+            if self._bm25:
+                 tokenized_query = query.lower().split()
+                 # Obtener scores crudos
+                 doc_scores = self._bm25.get_scores(tokenized_query)
+                 # Top-N indices
+                 top_n_indices = np.argsort(doc_scores)[::-1][:n_results * 2]
+                 
+                 for idx in top_n_indices:
+                     score = doc_scores[idx]
+                     if score > 0: # Solo hits relevantes
+                         doc_id = self._bm25_ids[idx]
+                         # Necesitamos metadata para filtrar... 
+                         # BM25 es "dumb", así que filtramos post-hoc o aceptamos ruido.
+                         # Por eficiencia, aceptamos ruido en esta fase y fusionamos.
+                         bm25_results.append(doc_id)
+
+            # 4. RRF Fusion
+            # RRF Score = 1 / (k + rank)
+            k = 60
+            doc_scores: Dict[str, float] = {}
+            
+            # Process Vector Ranks
+            for rank, res in enumerate(vector_results):
+                doc_id = res['id']
+                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1 / (k + rank + 1))
+                
+            # Process BM25 Ranks
+            for rank, doc_id in enumerate(bm25_results):
+                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1 / (k + rank + 1))
+            
+            # 5. Sort & Fetch Final Metadata
+            sorted_ids = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[:n_results]
+            final_top_ids = [x[0] for x in sorted_ids]
+            
+            # Recuperar metadata completa de los ganadores (si no la tenemos ya)
+            # Optimizacion: Usar los objetos de vector_results si existen
+            final_results = []
+            
+            # Map id -> object from vector results
+            vector_map = {res['id']: res for res in vector_results}
+            
+            for doc_id in final_top_ids:
+                if doc_id in vector_map:
+                    item = vector_map[doc_id]
+                    item['score'] = doc_scores[doc_id]
+                    item['method'] = 'hybrid'
+                    final_results.append(item)
+                else:
+                    # Cache miss (BM25 only hit), fetch from DB
+                    # Esto es lento, pero necesario para "Keyword only" hits
+                    try:
+                        record = self._skeleton_collection.get(ids=[doc_id])
+                        if record['ids']:
+                             meta = record['metadatas'][0]
+                             # Aplica filtros tardíos si es necesario
+                             # (Simplificado: Si filtraste por lang en vector, podrías tener basura de BM25 aquí)
+                             # TODO: Implementar filtrado robusto para BM25
+                             
+                             final_results.append({
+                                'id': doc_id,
+                                'name': meta.get('name'),
+                                'node_type': meta.get('node_type'),
+                                'signature': record['documents'][0],
+                                'file_path': meta.get('file_path'),
+                                'score': doc_scores[doc_id],
+                                'method': 'keyword',
+                                'start_line': meta.get('start_line'), # Added missing fields
+                                'end_line': meta.get('end_line'),
+                            })
+                    except Exception: pass
+
+            logger.info(f"Hybrid Search '{query[:20]}': {len(final_results)} resultados (Vector={len(vector_results)}, BM25={len(bm25_results)})")
+            return final_results
+
+        except Exception as e:
+             logger.error(f"Error en Hybrid Search: {e}")
+             return []
+
+    def _vector_search(
+        self,
+        query: str,
+        n_results: int = 5,
+        language: Optional[str] = None,
+        node_type: Optional[str] = None,
+    ) -> list[dict]:
+        """
+        Búsqueda Vectorial Pura (Legacy semantic_search).
+        """
+        try:
+            # Generar embedding de la query
+            embedder = self._get_embedder()
+            query_embedding = embedder.encode(
+                [query],
+                batch_size=1,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+            )
+            
+            # Construir filtro
+            where_filter = None
+            if language or node_type:
+                conditions = []
+                if language:
+                    conditions.append({"language": language})
+                if node_type:
+                    conditions.append({"node_type": node_type})
+                
+                if len(conditions) == 1:
+                    where_filter = conditions[0]
+                else:
+                    where_filter = {"$and": conditions}
+            
+            # Special case for memory
+            if node_type == "memory" and not where_filter:
+                 where_filter = {"node_type": "memory"}
+
+            # Ejecutar búsqueda
+            results = self._skeleton_collection.query(
+                query_embeddings=query_embedding.tolist(),
+                n_results=n_results,
+                where=where_filter,
+                include=["metadatas", "documents", "distances"],
+            )
+            
+            # Actualizar estadísticas
+            with self._lock:
+                self._stats["queries_executed"] += 1
+            
+            # Formatear resultados
+            formatted = []
+            if results["ids"] and results["ids"][0]:
+                for i, doc_id in enumerate(results["ids"][0]):
+                    metadata = results["metadatas"][0][i]
+                    distance = results["distances"][0][i] if results["distances"] else None
+                    
+                    formatted.append({
+                        "id": doc_id,
+                        "name": metadata.get("name"),
+                        "node_type": metadata.get("node_type"),
+                        "signature": results["documents"][0][i],
+                        "file_path": metadata.get("file_path"),
+                        "start_line": metadata.get("start_line"),
+                        "end_line": metadata.get("end_line"),
+                        "language": metadata.get("language"),
+                        "parent": metadata.get("parent"),
+                        "relevance": 1 - distance if distance else None,
+                    })
+            
+            return formatted
+            
+        except Exception as e:
+            logger.error(f"Error en búsqueda vectorial: {e}")
             return []
     
     def get_file_skeleton(self, file_path: str) -> dict:
