@@ -918,17 +918,25 @@ except Exception as e:
 
             # EXPOSE PORTS: Mapeo manual via docker_runtime_kwargs (Senior Strategy)
             # Esto expone el File Viewer (32733) y el Action Server al Host.
-            oh_config.sandbox.docker_runtime_kwargs = {
-                "port_bindings": {
-                    32733: 32733,
-                    32184: 32184,
-                    43230: 43230
-                }
-            }
+            # oh_config.sandbox.docker_runtime_kwargs = {
+            #     "port_bindings": {
+            #         32733: 32733,
+            #         32184: 32184,
+            #         43230: 43230
+            #     }
+            # }
             
             # SENIOR FIX: Evitar Error 500 en Windows Sandbox
             # A veces el montaje de volumes falla en Windows si es muy rápido
             oh_config.sandbox.keep_runtime_alive = True
+            
+            # Infraestructura Inmutable (Silicon Valley Standard)
+            # Usamos una imagen certificada y evitamos el build local frágil.
+            oh_config.sandbox.runtime_container_image = "ghcr.io/all-hands-ai/runtime:0.12-nikolaik"
+            oh_config.sandbox.force_rebuild_runtime = False
+            
+            # Asegurar que el path del intérprete de OpenHands no cause conflictos en Windows
+            os.environ["OPENHANDS_USER_ID"] = "0" # Forzar root para evitar problemas de permisos en Docker Desktop
             
             # Limitar presupuesto a $0 (Solo modelos gratuitos/ilimitados)
             oh_config.max_budget_per_task = 0.0 
