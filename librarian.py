@@ -197,8 +197,10 @@ class SkeletonExtractor:
         with self._lock:
             if lang_name not in self._parsers:
                 try:
+                    from tree_sitter import Language
                     grammar_module = importlib.import_module(module_name)
-                    parser = Parser(grammar_module.language())
+                    language = Language(grammar_module.language())
+                    parser = Parser(language)
                     self._parsers[lang_name] = parser
                     logger.info(f"Parser cargado: {lang_name}")
                 except ImportError as e:

@@ -915,6 +915,16 @@ except Exception as e:
             # Optimización de Recursos y Presupuesto (POLÍTICA: COSTO CERO)
             oh_config.sandbox.use_host_network = False
             oh_config.sandbox.timeout = 300 # 5 min por acción
+
+            # EXPOSE PORTS: Mapeo manual via docker_runtime_kwargs (Senior Strategy)
+            # Esto expone el File Viewer (32733) y el Action Server al Host.
+            oh_config.sandbox.docker_runtime_kwargs = {
+                "port_bindings": {
+                    32733: 32733,
+                    32184: 32184,
+                    43230: 43230
+                }
+            }
             
             # SENIOR FIX: Evitar Error 500 en Windows Sandbox
             # A veces el montaje de volumes falla en Windows si es muy rápido
@@ -924,9 +934,23 @@ except Exception as e:
             oh_config.max_budget_per_task = 0.0 
             oh_config.max_iterations = max_iterations
             
-            # Nota: Algunos parámetros de limitación de Docker pueden no estar expuestos 
-            # directamente en OpenHandsConfig v1.2.1 de forma simple, 
-            # pero ajustamos los que afectan estabilidad.
+            # Configurar MCP Proxy Manager (Senior Fix)
+            # Esto permite al agente usar herramientas externas (MCP) 
+            # y silencia los warnings de inicialización.
+            from openhands.core.config.mcp_config import MCPConfig, MCPStdioServerConfig
+            oh_config.mcp = MCPConfig()
+            
+            tavily_key = os.getenv("TAVILY_API_KEY")
+            if tavily_key:
+                logger.info("Configurando servidor MCP Tavily para OpenHands.")
+                oh_config.mcp.stdio_servers.append(
+                    MCPStdioServerConfig(
+                        name="tavily",
+                        command="npx",
+                        args=["-y", "@tavily/mcp-server@latest"],
+                        env={"TAVILY_API_KEY": tavily_key}
+                    )
+                )
             
             # Inicializar Registro de LLM con Config
             llm_registry = LLMRegistry(config=oh_config)
@@ -1024,18 +1048,19 @@ except Exception as e:
                     logger.info(f"[OH-State] {last_state} -> {current_state}")
                     last_state = current_state
                 
-                # Si el agente está en modo RUNNING pero no hace nada, forzar un 'step'
-                # En v1.2.1 el controlador necesita ser "avivado" si se usa como librería
-                if current_state == AgentState.RUNNING:
-                    # step() es asíncrono y dispara el siguiente bloque lógico
-                    controller.step()
+                # Si el agente está en modo RUNNING o listo, 'avivamos' el controlador
+                # step() es asíncrono y dispara el siguiente bloque lógico si el event stream tiene tareas
+                if current_state in (AgentState.RUNNING, AgentState.AWAITING_USER_INPUT):
+                    # Forzar una actualización del agente para evitar el hang en RecallAction
+                    if wait_time % 5 == 0:
+                        logger.debug("Forzando latido del controlador (Controller Pulse)")
+                    await controller.step()
                 
                 if current_state in (AgentState.FINISHED, AgentState.ERROR, AgentState.REJECTED):
                     break
                     
-                await asyncio.sleep(10) # Aumentamos a 10s para dar tiempo al LLM Cloud
-                wait_time += 10
-                wait_time += 5
+                await asyncio.sleep(1) 
+                wait_time += 1
                 
                 # Reportar progreso cada 30 segundos
                 if wait_time % 30 == 0:
