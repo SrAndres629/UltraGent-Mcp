@@ -600,6 +600,42 @@ except Exception as e:
         if not self.is_available:
             return {"success": False, "error": "Docker no disponible"}
 
+        # WORKAROUND Senior: Forzar .NET 8.0 para pythonnet (OpenHands Windows Bridge)
+        # Esto previene el fallo 'Failed to load CoreCLR' causado por versiones inestables de .NET (ej: 10.0-RC)
+        import os
+        import subprocess
+        import json # Added for json.dumps
+        
+        try:
+            # Intentar localizar el path de .NET 8.0 automáticamente
+            dotnet_root = r"C:\Program Files\dotnet"
+            shared_root = os.path.join(dotnet_root, "shared", "Microsoft.NETCore.App")
+            if os.path.exists(shared_root):
+                versions = sorted([d for d in os.listdir(shared_root) if d.startswith("8.0")], reverse=True)
+                if versions:
+                    dotnet_8_path = os.path.join(shared_root, versions[0])
+                    os.environ["PYTHONNET_RUNTIME"] = "coreclr"
+                    os.environ["PYTHONNET_CORECLR_RUNTIME_CONFIG"] = str(Path(__file__).parent / "ultragent.runtimeconfig.json")
+                    # No establecer PYTHONNET_CORECLR_PATH directamente si no es necesario,
+                    # pero asegurar que el host sea coherente.
+                    logger.info(f"OpenHands Bridge: Forzando runtime .NET {versions[0]}")
+        except Exception as e:
+            logger.warning(f"No se pudo configurar variable de entorno para .NET: {e}")
+
+        # Asegurar que exista el runtimeconfig.json
+        runtime_config = Path(__file__).parent / "ultragent.runtimeconfig.json"
+        if not runtime_config.exists():
+            config_content = {
+                "runtimeOptions": {
+                    "tfm": "net8.0",
+                    "framework": {
+                        "name": "Microsoft.NETCore.App",
+                        "version": "8.0.0"
+                    }
+                }
+            }
+            runtime_config.write_text(json.dumps(config_content), encoding="utf-8")
+
         # Configuración de entorno Senior: Forzar detección de .NET y generar runtimeconfig estable
         dotnet_root = os.environ.get("DOTNET_ROOT")
         if not dotnet_root:
