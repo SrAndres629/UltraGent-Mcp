@@ -14,15 +14,14 @@ Implementa:
 import hashlib
 import importlib
 import logging
+import math
 import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-PROJECT_ROOT = Path.cwd() # Isolate storage per project
-CHROMA_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai") / "chroma"
-SKELETON_COLLECTION = "code_skeletons"
-FULLCODE_COLLECTION = "full_code"
-import math
+from pathlib import Path
+from threading import Lock
+from typing import Any, Dict, List, Optional
 
 import chromadb
 from chromadb.config import Settings

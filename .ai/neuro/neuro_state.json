@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-04T23:54:46.400026",
+  "timestamp": "2026-02-05T11:36:52.517925",
   "nodes": [
     {
       "id": "cortex",
@@ -9,10 +9,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 4,
+        "in_degree": 6,
         "out_degree": 11
       }
     },
@@ -24,7 +25,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 2,
@@ -39,10 +41,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 11,
+        "in_degree": 14,
         "out_degree": 0
       }
     },
@@ -54,10 +57,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 17,
+        "in_degree": 31,
         "out_degree": 0
       }
     },
@@ -69,10 +73,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 25,
+        "in_degree": 33,
         "out_degree": 0
       }
     },
@@ -84,7 +89,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 5,
@@ -99,10 +105,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 10,
+        "in_degree": 9,
         "out_degree": 0
       }
     },
@@ -114,7 +121,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 15,
@@ -129,10 +137,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 18,
+        "in_degree": 32,
         "out_degree": 0
       }
     },
@@ -144,10 +153,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 11,
+        "in_degree": 10,
         "out_degree": 0
       }
     },
@@ -159,10 +169,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 12,
+        "in_degree": 13,
         "out_degree": 0
       }
     },
@@ -174,26 +185,30 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 5,
-        "out_degree": 15
+        "in_degree": 12,
+        "out_degree": 18
       }
     },
     {
-      "id": "debug_cortex",
+      "id": "evolution",
       "type": "file",
       "state": {
-        "last_active": null,
+        "last_active": "2026-02-05T11:36:52.517518",
         "activation_level": 0.0,
         "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
+        "active_variables": {
+          "fitness": "N/A"
+        },
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 0,
-        "out_degree": 6
+        "in_degree": 4,
+        "out_degree": 15
       }
     },
     {
@@ -204,266 +219,12 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 19,
+        "in_degree": 27,
         "out_degree": 0
-      }
-    },
-    {
-      "id": "sys",
-      "type": "package",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 14,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "dotenv",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 10,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "debug_evolution",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 5
-      }
-    },
-    {
-      "id": "chromadb",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 2,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "debug_final_sf",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 4
-      }
-    },
-    {
-      "id": "httpx",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 5,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "debug_gemini",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 6
-      }
-    },
-    {
-      "id": "router",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 5,
-        "out_degree": 15
-      }
-    },
-    {
-      "id": "debug_github",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 5
-      }
-    },
-    {
-      "id": "scout",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 7,
-        "out_degree": 14
-      }
-    },
-    {
-      "id": "debug_groq",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 7
-      }
-    },
-    {
-      "id": "traceback",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 3,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "debug_scout",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 5
-      }
-    },
-    {
-      "id": "debug_siliconflow",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 5
-      }
-    },
-    {
-      "id": "debug_vision_v2",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 8
-      }
-    },
-    {
-      "id": "vision",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 4,
-        "out_degree": 12
-      }
-    },
-    {
-      "id": "evolution",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 4,
-        "out_degree": 15
       }
     },
     {
@@ -474,7 +235,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 3,
@@ -489,11 +251,44 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 5,
+        "in_degree": 9,
         "out_degree": 0
+      }
+    },
+    {
+      "id": "router",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 6,
+        "out_degree": 15
+      }
+    },
+    {
+      "id": "scout",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 8,
+        "out_degree": 14
       }
     },
     {
@@ -504,10 +299,75 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 7,
+        "in_degree": 8,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "git_senior_sync",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 8
+      }
+    },
+    {
+      "id": "subprocess",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 3,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "sys",
+      "type": "package",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 29,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "traceback",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 10,
         "out_degree": 0
       }
     },
@@ -519,10 +379,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 2,
+        "in_degree": 3,
         "out_degree": 19
       }
     },
@@ -534,11 +395,12 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 3,
-        "out_degree": 13
+        "in_degree": 9,
+        "out_degree": 14
       }
     },
     {
@@ -549,7 +411,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 4,
@@ -564,11 +427,12 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 2,
-        "out_degree": 19
+        "in_degree": 3,
+        "out_degree": 21
       }
     },
     {
@@ -579,10 +443,11 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 3,
+        "in_degree": 4,
         "out_degree": 13
       }
     },
@@ -594,10 +459,27 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 3,
+        "in_degree": 7,
+        "out_degree": 11
+      }
+    },
+    {
+      "id": "vision",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 6,
         "out_degree": 12
       }
     },
@@ -609,7 +491,72 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "math",
+      "type": "package",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "chromadb",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 2,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "rank_bm25",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "numpy",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -624,7 +571,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -639,7 +587,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -654,7 +603,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -669,7 +619,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -684,7 +635,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -699,7 +651,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -714,7 +667,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 2,
@@ -722,18 +676,19 @@
       }
     },
     {
-      "id": "manual_audit",
-      "type": "file",
+      "id": "dotenv",
+      "type": "module",
       "state": {
         "last_active": null,
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 0,
-        "out_degree": 8
+        "in_degree": 12,
+        "out_degree": 0
       }
     },
     {
@@ -744,7 +699,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -752,29 +708,31 @@
       }
     },
     {
-      "id": "tempfile",
-      "type": "package",
+      "id": "google",
+      "type": "module",
       "state": {
         "last_active": null,
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 1,
+        "in_degree": 2,
         "out_degree": 0
       }
     },
     {
-      "id": "uuid",
-      "type": "package",
+      "id": "openai",
+      "type": "module",
       "state": {
         "last_active": null,
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -789,7 +747,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 2,
@@ -804,7 +763,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 2,
@@ -819,11 +779,28 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
         "out_degree": 11
+      }
+    },
+    {
+      "id": "httpx",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 5,
+        "out_degree": 0
       }
     },
     {
@@ -834,7 +811,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -849,7 +827,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -864,7 +843,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -879,7 +859,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -894,7 +875,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -909,7 +891,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 1,
@@ -924,11 +907,556 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
         "out_degree": 5
+      }
+    },
+    {
+      "id": "setup_knowledge",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
+      }
+    },
+    {
+      "id": "ultragent_loop",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 12
+      }
+    },
+    {
+      "id": "verify_hybrid",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 4
+      }
+    },
+    {
+      "id": "verify_keys",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 2
+      }
+    },
+    {
+      "id": "verify_memory",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
+      }
+    },
+    {
+      "id": "verify_native",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
+      }
+    },
+    {
+      "id": "verify_suite",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 9
+      }
+    },
+    {
+      "id": "verify_vis_neuro",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 7
+      }
+    },
+    {
+      "id": "matplotlib",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "cleaner",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 3
+      }
+    },
+    {
+      "id": "debug_cortex",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
+      }
+    },
+    {
+      "id": "debug_evolution",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "debug_final_sf",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 4
+      }
+    },
+    {
+      "id": "debug_gemini",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
+      }
+    },
+    {
+      "id": "debug_github",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "debug_groq",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 7
+      }
+    },
+    {
+      "id": "debug_oh_agents",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 3
+      }
+    },
+    {
+      "id": "openhands",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 2,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "debug_scout",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "debug_siliconflow",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "debug_vision_v2",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 8
+      }
+    },
+    {
+      "id": "deep_inspect_oh",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 3
+      }
+    },
+    {
+      "id": "inspect",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 2,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "demo_neuro_capabilities",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 3
+      }
+    },
+    {
+      "id": "diagnose_clr",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 7
+      }
+    },
+    {
+      "id": "ctypes",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "clr_loader",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "pythonnet",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "manual_audit",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 8
+      }
+    },
+    {
+      "id": "stress_test_sync",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 10
+      }
+    },
+    {
+      "id": "random",
+      "type": "package",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "string",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "verify_debt_hunter",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "verify_mechanic_v2",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 6
       }
     },
     {
@@ -939,7 +1467,40 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
+      "id": "verify_openhands_integration",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 7
+      }
+    },
+    {
+      "id": "verify_optimization",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -954,26 +1515,12 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
         "out_degree": 9
-      }
-    },
-    {
-      "id": "matplotlib",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 1,
-        "out_degree": 0
       }
     },
     {
@@ -984,7 +1531,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -999,7 +1547,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1014,7 +1563,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1029,7 +1579,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1044,7 +1595,8 @@
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {},
-        "logs": []
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1052,31 +1604,15 @@
       }
     },
     {
-      "id": "scout.py",
-      "type": "dynamic",
+      "id": "Memory #6",
+      "type": "memory",
       "state": {
-        "last_active": "2026-02-04T23:54:46.398262",
-        "activation_level": 0.2,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": []
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 0
-      }
-    },
-    {
-      "id": "evolution.py",
-      "type": "dynamic",
-      "state": {
-        "last_active": "2026-02-04T23:54:46.398270",
+        "last_active": null,
         "activation_level": 0.0,
         "error_rate": 0.0,
-        "active_variables": {
-          "fitness_score": 92.5
-        },
-        "logs": []
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1084,16 +1620,15 @@
       }
     },
     {
-      "id": "hud_manager.py",
-      "type": "dynamic",
+      "id": "Memory #7",
+      "type": "memory",
       "state": {
-        "last_active": "2026-02-04T23:54:46.398274",
+        "last_active": null,
         "activation_level": 0.0,
-        "error_rate": 0.1,
+        "error_rate": 0.0,
         "active_variables": {},
-        "logs": [
-          "ERROR: Simulated timeout"
-        ]
+        "logs": [],
+        "fix_attempts": 0
       },
       "metrics": {
         "in_degree": 0,
@@ -1174,6 +1709,11 @@
     },
     {
       "source": "librarian",
+      "target": "math",
+      "type": "import"
+    },
+    {
+      "source": "librarian",
       "target": "os",
       "type": "import"
     },
@@ -1214,6 +1754,16 @@
     },
     {
       "source": "librarian",
+      "target": "rank_bm25",
+      "type": "import"
+    },
+    {
+      "source": "librarian",
+      "target": "numpy",
+      "type": "import"
+    },
+    {
+      "source": "librarian",
       "target": "sys",
       "type": "import"
     },
@@ -1233,108 +1783,78 @@
       "type": "import"
     },
     {
-      "source": "debug_cortex",
+      "source": "evolution",
       "target": "asyncio",
       "type": "import"
     },
     {
-      "source": "debug_cortex",
-      "target": "sys",
+      "source": "evolution",
+      "target": "json",
       "type": "import"
     },
     {
-      "source": "debug_cortex",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_cortex",
-      "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "debug_cortex",
-      "target": "dotenv",
-      "type": "import"
-    },
-    {
-      "source": "debug_cortex",
-      "target": "cortex",
-      "type": "import"
-    },
-    {
-      "source": "debug_evolution",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_evolution",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_evolution",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_evolution",
-      "target": "chromadb",
-      "type": "import"
-    },
-    {
-      "source": "debug_evolution",
-      "target": "librarian",
-      "type": "import"
-    },
-    {
-      "source": "debug_final_sf",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_final_sf",
-      "target": "httpx",
-      "type": "import"
-    },
-    {
-      "source": "debug_final_sf",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_final_sf",
-      "target": "dotenv",
-      "type": "import"
-    },
-    {
-      "source": "debug_gemini",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_gemini",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_gemini",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_gemini",
+      "source": "evolution",
       "target": "logging",
       "type": "import"
     },
     {
-      "source": "debug_gemini",
-      "target": "dotenv",
+      "source": "evolution",
+      "target": "os",
       "type": "import"
     },
     {
-      "source": "debug_gemini",
+      "source": "evolution",
+      "target": "dataclasses",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "datetime",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "enum",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "threading",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "typing",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "time",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
       "target": "router",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "scout",
+      "type": "import"
+    },
+    {
+      "source": "evolution",
+      "target": "re",
       "type": "import"
     },
     {
@@ -1413,31 +1933,6 @@
       "type": "import"
     },
     {
-      "source": "debug_github",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_github",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_github",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_github",
-      "target": "json",
-      "type": "import"
-    },
-    {
-      "source": "debug_github",
-      "target": "scout",
-      "type": "import"
-    },
-    {
       "source": "scout",
       "target": "asyncio",
       "type": "import"
@@ -1508,263 +2003,43 @@
       "type": "import"
     },
     {
-      "source": "debug_groq",
+      "source": "git_senior_sync",
       "target": "asyncio",
       "type": "import"
     },
     {
-      "source": "debug_groq",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_groq",
+      "source": "git_senior_sync",
       "target": "os",
       "type": "import"
     },
     {
-      "source": "debug_groq",
+      "source": "git_senior_sync",
+      "target": "subprocess",
+      "type": "import"
+    },
+    {
+      "source": "git_senior_sync",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "git_senior_sync",
       "target": "logging",
       "type": "import"
     },
     {
-      "source": "debug_groq",
-      "target": "dotenv",
+      "source": "git_senior_sync",
+      "target": "pathlib",
       "type": "import"
     },
     {
-      "source": "debug_groq",
+      "source": "git_senior_sync",
       "target": "router",
       "type": "import"
     },
     {
-      "source": "debug_groq",
+      "source": "git_senior_sync",
       "target": "traceback",
-      "type": "import"
-    },
-    {
-      "source": "debug_scout",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_scout",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_scout",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_scout",
-      "target": "traceback",
-      "type": "import"
-    },
-    {
-      "source": "debug_scout",
-      "target": "scout",
-      "type": "import"
-    },
-    {
-      "source": "debug_siliconflow",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_siliconflow",
-      "target": "httpx",
-      "type": "import"
-    },
-    {
-      "source": "debug_siliconflow",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_siliconflow",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_siliconflow",
-      "target": "dotenv",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "logging",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "dotenv",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "vision",
-      "type": "import"
-    },
-    {
-      "source": "debug_vision_v2",
-      "target": "cortex",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "ast",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "logging",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "re",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "dataclasses",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "datetime",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "threading",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "typing",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "cortex",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "matplotlib",
-      "type": "import"
-    },
-    {
-      "source": "vision",
-      "target": "networkx",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "json",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "logging",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "dataclasses",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "datetime",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "enum",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "threading",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "typing",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "time",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "librarian",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "router",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "scout",
-      "type": "import"
-    },
-    {
-      "source": "evolution",
-      "target": "re",
       "type": "import"
     },
     {
@@ -1928,6 +2203,16 @@
       "type": "import"
     },
     {
+      "source": "neuro_architect",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
       "source": "mcp_server",
       "target": "logging",
       "type": "import"
@@ -1959,6 +2244,11 @@
     },
     {
       "source": "mcp_server",
+      "target": "typing",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
       "target": "dotenv",
       "type": "import"
     },
@@ -1969,17 +2259,7 @@
     },
     {
       "source": "mcp_server",
-      "target": "sentinel",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
-      "target": "router",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
-      "target": "asyncio",
+      "target": "hud_manager",
       "type": "import"
     },
     {
@@ -2004,22 +2284,32 @@
     },
     {
       "source": "mcp_server",
-      "target": "mechanic",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
       "target": "vision",
       "type": "import"
     },
     {
       "source": "mcp_server",
-      "target": "hud_manager",
+      "target": "mechanic",
       "type": "import"
     },
     {
       "source": "mcp_server",
       "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
+      "target": "sentinel",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
+      "target": "docker",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
+      "target": "router",
       "type": "import"
     },
     {
@@ -2089,6 +2379,26 @@
     },
     {
       "source": "mechanic",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
+      "target": "subprocess",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
+      "target": "time",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
       "target": "json",
       "type": "import"
     },
@@ -2099,37 +2409,7 @@
     },
     {
       "source": "mechanic",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
-      "target": "tempfile",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
-      "target": "uuid",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
-      "target": "dataclasses",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
-      "target": "datetime",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
       "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "mechanic",
-      "target": "threading",
       "type": "import"
     },
     {
@@ -2139,12 +2419,77 @@
     },
     {
       "source": "mechanic",
-      "target": "docker",
+      "target": "dotenv",
       "type": "import"
     },
     {
       "source": "mechanic",
-      "target": "shutil",
+      "target": "google",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
+      "target": "openai",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "ast",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "re",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "dataclasses",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "datetime",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "threading",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "typing",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "matplotlib",
+      "type": "import"
+    },
+    {
+      "source": "vision",
+      "target": "networkx",
       "type": "import"
     },
     {
@@ -2223,46 +2568,6 @@
       "type": "import"
     },
     {
-      "source": "manual_audit",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "json",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "datetime",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "evolution",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "scout",
-      "type": "import"
-    },
-    {
-      "source": "manual_audit",
-      "target": "traceback",
-      "type": "import"
-    },
-    {
       "source": "probe",
       "target": "asyncio",
       "type": "import"
@@ -2343,6 +2648,761 @@
       "type": "import"
     },
     {
+      "source": "setup_knowledge",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "setup_knowledge",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "setup_knowledge",
+      "target": "time",
+      "type": "import"
+    },
+    {
+      "source": "setup_knowledge",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "setup_knowledge",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "setup_knowledge",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "time",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "datetime",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "mechanic",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "ultragent_loop",
+      "target": "sentinel",
+      "type": "import"
+    },
+    {
+      "source": "verify_hybrid",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_hybrid",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_hybrid",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_hybrid",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "verify_keys",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "verify_keys",
+      "target": "google",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "shutil",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "verify_memory",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "verify_native",
+      "target": "mechanic",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "vision",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "scout",
+      "type": "import"
+    },
+    {
+      "source": "verify_suite",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "vision",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "verify_vis_neuro",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "cleaner",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "cleaner",
+      "target": "re",
+      "type": "import"
+    },
+    {
+      "source": "cleaner",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_cortex",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "debug_evolution",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_evolution",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_evolution",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_evolution",
+      "target": "chromadb",
+      "type": "import"
+    },
+    {
+      "source": "debug_evolution",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "debug_final_sf",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_final_sf",
+      "target": "httpx",
+      "type": "import"
+    },
+    {
+      "source": "debug_final_sf",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_final_sf",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_gemini",
+      "target": "router",
+      "type": "import"
+    },
+    {
+      "source": "debug_github",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_github",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_github",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_github",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "debug_github",
+      "target": "scout",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "router",
+      "type": "import"
+    },
+    {
+      "source": "debug_groq",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "debug_oh_agents",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "debug_oh_agents",
+      "target": "openhands",
+      "type": "import"
+    },
+    {
+      "source": "debug_oh_agents",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "debug_scout",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_scout",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_scout",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_scout",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "debug_scout",
+      "target": "scout",
+      "type": "import"
+    },
+    {
+      "source": "debug_siliconflow",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_siliconflow",
+      "target": "httpx",
+      "type": "import"
+    },
+    {
+      "source": "debug_siliconflow",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_siliconflow",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_siliconflow",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "dotenv",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "vision",
+      "type": "import"
+    },
+    {
+      "source": "debug_vision_v2",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "deep_inspect_oh",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "deep_inspect_oh",
+      "target": "inspect",
+      "type": "import"
+    },
+    {
+      "source": "deep_inspect_oh",
+      "target": "openhands",
+      "type": "import"
+    },
+    {
+      "source": "demo_neuro_capabilities",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "demo_neuro_capabilities",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "demo_neuro_capabilities",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "ctypes",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "clr_loader",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "pythonnet",
+      "type": "import"
+    },
+    {
+      "source": "diagnose_clr",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "datetime",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "evolution",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "scout",
+      "type": "import"
+    },
+    {
+      "source": "manual_audit",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "time",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "random",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "string",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "inspect",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "mcp_server",
+      "type": "import"
+    },
+    {
+      "source": "stress_test_sync",
+      "target": "hud_manager",
+      "type": "import"
+    },
+    {
+      "source": "verify_debt_hunter",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_debt_hunter",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_debt_hunter",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "verify_debt_hunter",
+      "target": "librarian",
+      "type": "import"
+    },
+    {
+      "source": "verify_debt_hunter",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "subprocess",
+      "type": "import"
+    },
+    {
+      "source": "verify_mechanic_v2",
+      "target": "mechanic",
+      "type": "import"
+    },
+    {
       "source": "verify_neuro_vision",
       "target": "asyncio",
       "type": "import"
@@ -2364,6 +3424,66 @@
     },
     {
       "source": "verify_neuro_vision",
+      "target": "neuro_architect",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "mechanic",
+      "type": "import"
+    },
+    {
+      "source": "verify_openhands_integration",
+      "target": "traceback",
+      "type": "import"
+    },
+    {
+      "source": "verify_optimization",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "verify_optimization",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_optimization",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_optimization",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_optimization",
       "target": "neuro_architect",
       "type": "import"
     },
@@ -2413,6 +3533,6 @@
       "type": "import"
     }
   ],
-  "neuron_count": 73,
-  "synapse_count": 262
+  "neuron_count": 102,
+  "synapse_count": 379
 }

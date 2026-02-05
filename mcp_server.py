@@ -15,15 +15,55 @@ Módulos integrados:
 Total: 24 tools
 """
 
+import asyncio
 import logging
 import os
 import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Callable, TypeVar
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIMEOUT HELPER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DEFAULT_TOOL_TIMEOUT = 15.0  # 15 seconds max per tool operation
+
+T = TypeVar('T')
+
+async def with_timeout(
+    coro: Any,
+    timeout: float = DEFAULT_TOOL_TIMEOUT,
+    operation_name: str = "operation"
+) -> dict:
+    """
+    Wraps an async coroutine with timeout protection.
+    
+    Returns:
+        dict: {"success": True, "result": ...} on success
+              {"success": False, "error": ..., "suggestion": ...} on failure
+    """
+    try:
+        result = await asyncio.wait_for(coro, timeout=timeout)
+        return {"success": True, "result": result}
+    except asyncio.TimeoutError:
+        return {
+            "success": False,
+            "error": f"Timeout after {timeout}s in {operation_name}",
+            "suggestion": "Try with a simpler query or check API connectivity",
+            "error_type": "TIMEOUT"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "suggestion": "Check logs for details"
+        }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN DE PATHS
@@ -392,6 +432,8 @@ async def strategic_consultant(
     - 'research': Investigación universal sobre una meta (Goal) y recomendación.
     - 'scout': Busca los mejores repositorios (Gold Standards) para referencia.
     - 'benchmark': Compara un archivo local contra el mejor repo del mundo en su categoría.
+    - 'plan': Genera un plan de ingeniería con LLM.
+    - 'route': Enruta una tarea al tier óptimo del router.
     """
     logger.info(f"strategic_consultant: action={action}, query='{query}'")
     
@@ -402,46 +444,106 @@ async def strategic_consultant(
         evolution = get_evolution()
         
         if action == "research":
-            report = await evolution.proactive_research(query)
-            return report.to_dict()
+            result = await with_timeout(
+                evolution.proactive_research(query),
+                timeout=20.0,
+                operation_name="proactive_research"
+            )
+            if not result["success"]:
+                return result
+            return result["result"].to_dict()
             
         elif action == "scout":
-            repos = await scout.search_repositories(query=query, language=language, min_stars=min_stars, max_results=5)
-            return {"success": True, "repos": [r.to_dict() for r in repos]}
+            result = await with_timeout(
+                scout.search_repositories(query=query, language=language, min_stars=min_stars, max_results=5),
+                timeout=15.0,
+                operation_name="GitHub search"
+            )
+            if not result["success"]:
+                result["suggestion"] = "Verify GITHUB_TOKEN is set in .env file"
+                return result
+            return {"success": True, "repos": [r.to_dict() for r in result["result"]]}
             
         elif action == "benchmark":
-            if not local_file: return {"error": "Se requiere 'local_file'"}
+            if not local_file: 
+                return {"error": "Se requiere 'local_file'", "suggestion": "Provide the path to the file to benchmark"}
             p = Path(local_file)
-            if not p.exists(): return {"error": "Archivo no encontrado"}
-            gold_repos = await scout.harvest_gold_standard(project_type=project_type, language=language)
-            if not gold_repos: return {"error": "No hay benchmarks disponibles"}
+            if not p.exists(): 
+                return {"error": "Archivo no encontrado", "suggestion": f"Verify the path: {local_file}"}
+            
+            # Gold repos with timeout
+            gold_result = await with_timeout(
+                scout.harvest_gold_standard(project_type=project_type, language=language),
+                timeout=15.0,
+                operation_name="harvest_gold_standard"
+            )
+            if not gold_result["success"]:
+                return gold_result
+            gold_repos = gold_result["result"]
+            if not gold_repos: 
+                return {"error": "No hay benchmarks disponibles", "suggestion": "Try a different project_type or language"}
+            
             best_repo = gold_repos[0]
-            report = await evolution.audit_code(local_code=p.read_text(encoding="utf-8"), local_file=str(p.name), benchmark_repo=best_repo.full_name, language=language)
+            audit_result = await with_timeout(
+                evolution.audit_code(
+                    local_code=p.read_text(encoding="utf-8"), 
+                    local_file=str(p.name), 
+                    benchmark_repo=best_repo.full_name, 
+                    language=language
+                ),
+                timeout=30.0,
+                operation_name="code_audit"
+            )
+            if not audit_result["success"]:
+                return audit_result
+            report = audit_result["result"]
             return {"success": True, "scorecard": report.scorecard.to_dict(), "report_path": str(report.save())}
 
         elif action == "plan":
-            # Genera un plan de ingeniería basado en el estado actual y meta
             from router import get_router
             prompt = f"Como arquitecto senior, genera un plan detallado para: {query}. Proyecto: {project_type}. Lenguaje: {language}"
-            result = await get_router().route_task(task_type="STRATEGIC", payload=prompt)
-            return {"success": True, "plan": result.content}
+            result = await with_timeout(
+                get_router().route_task(task_type="STRATEGIC", payload=prompt),
+                timeout=30.0,
+                operation_name="LLM planning"
+            )
+            if not result["success"]:
+                result["suggestion"] = "Check API keys for GEMINI_API_KEY or GROQ_API_KEY"
+                return result
+            return {"success": True, "plan": result["result"].content}
 
         elif action == "route":
             from router import get_router
-            result = await get_router().route_task(task_type=project_type, payload=query)
-            return {"success": result.success, "content": result.content, "tier": result.tier.value}
+            result = await with_timeout(
+                get_router().route_task(task_type=project_type, payload=query),
+                timeout=25.0,
+                operation_name="LLM routing"
+            )
+            if not result["success"]:
+                return result
+            r = result["result"]
+            return {"success": r.success, "content": r.content, "tier": r.tier.value}
 
         elif action == "swarm":
             from router import get_router
-            results = await get_router().ask_swarm(task=query, subtasks=[query])
-            return {"success": True, "results": [r.content for r in results]}
+            result = await with_timeout(
+                get_router().ask_swarm(task=query, subtasks=[query]),
+                timeout=45.0,
+                operation_name="swarm execution"
+            )
+            if not result["success"]:
+                return result
+            return {"success": True, "results": [r.content for r in result["result"]]}
 
         else:
-            return {"error": f"Acción desconocida: {action}"}
+            return {
+                "error": f"Acción desconocida: {action}", 
+                "suggestion": "Valid actions: research, scout, benchmark, plan, route, swarm"
+            }
             
     except Exception as e:
         logger.error(f"Error en strategic_consultant: {e}")
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -609,6 +711,93 @@ def analyze_impact(
     except Exception as e:
         logger.error(f"Error en analyze_impact: {e}")
         return {"error": str(e)}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MCP RESOURCES (Documentation for Agents)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@mcp.resource("ultragent://docs/overview")
+def get_overview() -> str:
+    """Overview of Ultragent MCP capabilities."""
+    return """# Ultragent MCP - Quick Reference
+
+## Core Tools (Start Here)
+- `sync_system_status`: Health check & sync. Call with action='sync' first.
+- `manage_cortex`: Project memory (add/list decisions)
+
+## Research Tools
+- `strategic_consultant`: GitHub scouting & code benchmarking
+  - action='scout': Find Gold Standard repos
+  - action='research': Universal search with recommendations
+  - action='benchmark': Compare local code vs best practices
+
+## Code Analysis Tools
+- `semantic_search`: Find code by natural language query
+- `analyze_impact`: Predict side effects of changes
+- `visualize_architecture`: Generate dependency graphs
+
+## Execution Tools  
+- `run_agentic_task`: Autonomous task execution (Gemini-powered)
+- `test_code_securely`: Run code in Docker sandbox
+
+## Recommended Workflow
+1. sync_system_status(action='sync') - Check system health
+2. strategic_consultant(action='scout') - Find reference implementations
+3. semantic_search(action='search') - Understand existing code
+4. analyze_impact(action='impact') - Before making changes
+"""
+
+@mcp.resource("ultragent://docs/errors")
+def get_error_guide() -> str:
+    """Common errors and solutions."""
+    return """# Ultragent Error Guide
+
+## TIMEOUT Errors
+- **Cause**: External API took too long (GitHub, LLM, etc.)
+- **Solution**: Check API keys in .env, try simpler query
+
+## "Path not defined" 
+- **Cause**: Module import order bug (fixed in v2.1)
+- **Solution**: Restart MCP server
+
+## "No GITHUB_TOKEN"
+- **Cause**: Scout needs GitHub API access
+- **Solution**: Add GITHUB_TOKEN to .env file
+
+## "Docker unavailable"
+- **Cause**: Mechanic needs Docker for sandboxing
+- **Solution**: Start Docker Desktop or use lightweight mode
+
+## API Key Checklist (.env)
+- GITHUB_TOKEN: For GitHub searches
+- GEMINI_API_KEY: For strategic planning
+- GROQ_API_KEY: For fast operations
+"""
+
+@mcp.resource("ultragent://docs/tools")
+def get_tools_reference() -> str:
+    """Detailed tool reference."""
+    return """# Tool Reference
+
+## strategic_consultant
+**Purpose**: External research and code comparison
+**Actions**:
+| Action | Timeout | Description |
+|--------|---------|-------------|
+| scout | 15s | Search GitHub for repos |
+| research | 20s | Web search + recommendations |
+| benchmark | 30s | Compare code vs Gold Standard |
+| plan | 30s | Generate engineering plan |
+| route | 25s | Route task to optimal LLM |
+
+## semantic_search
+**Purpose**: Code understanding via NLP
+**Actions**: search, skeleton, index, scan_debt
+
+## analyze_impact
+**Purpose**: Predict change effects
+**Actions**: impact, trace, brain_state, brain_min
+"""
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENTRY POINT
