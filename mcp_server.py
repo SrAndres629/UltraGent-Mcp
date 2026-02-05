@@ -642,6 +642,68 @@ def get_librarian_status() -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# CORTEX TOOLS (Memory Atoms)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+def add_memory(content: str, tags: List[str] = None, importance: float = 1.0) -> dict:
+    """
+    Añade un nuevo átomo de memoria (recuerdo) al Cortex.
+    
+    Los recuerdos son hechos, decisiones o contexto que el agente
+    debe persistir más allá de la sesión actual.
+    
+    Args:
+        content: Contenido del recuerdo
+        tags: Etiquetas para categorizar (ej: ["decisión", "arquitectura"])
+        importance: Nivel de importancia (0.0 a 1.0)
+        
+    Returns:
+        dict: {success, memory_id}
+    """
+    logger.info(f"add_memory invocado: '{content[:50]}'")
+    try:
+        from cortex import get_cortex
+        cortex = get_cortex()
+        mid = cortex.add_memory(content, tags, importance)
+        return {"success": True, "memory_id": mid}
+    except Exception as e:
+        logger.error(f"Error en add_memory: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
+def get_all_memories() -> dict:
+    """
+    Retorna todos los átomos de memoria guardados en el Cortex.
+    
+    Returns:
+        dict: {success, memories: list}
+    """
+    logger.info("get_all_memories invocado")
+    try:
+        from cortex import get_cortex
+        cortex = get_cortex()
+        memories = cortex.get_all_memories()
+        return {
+            "success": True, 
+            "memories": [
+                {
+                    "id": m.id,
+                    "content": m.content,
+                    "tags": m.tags,
+                    "importance": m.importance,
+                    "created_at": m.created_at.isoformat() if hasattr(m.created_at, "isoformat") else str(m.created_at)
+                } 
+                for m in memories
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error en get_all_memories: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SCOUT / EVOLUTION TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -931,12 +993,13 @@ def visualize_architecture(
     output_filename: str | None = None,
 ) -> dict:
     """
-    Genera un mapa visual de dependencias del proyecto.
-    
-    Analiza todos los archivos .py y genera un grafo PNG donde:
+    Analiza todos los archivos .py y memorias del Cortex para generar un grafo PNG donde:
     - Verde: archivos del proyecto
+    - Púrpura: Memorias semánticas (recuerdos)
     - Gris: dependencias externas
     - ROJO: ciclos de dependencias (problema!)
+    - Líneas continuas: dependencias de código
+    - Líneas punteadas: relaciones semánticas (Cortex links)
     
     Args:
         output_filename: Nombre del archivo (sin path). Default: auto-generado.

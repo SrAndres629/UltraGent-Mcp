@@ -480,12 +480,50 @@ class EvolutionAuditor:
         """
         scout = get_scout()
         
-        # 1. Búsqueda Universal
-        results = await scout.universal_search(
-            query=task_description,
-            max_results=3,
-            modernity_years=2
-        )
+        # 0. Detección de URL de GitHub (Smart GitHub Mode)
+        import re
+        github_match = re.search(r"https?://github\.com/([\w\-\.]+)/([\w\-\.]+)", task_description)
+        results = []
+        
+        if github_match:
+            owner, repo = github_match.groups()
+            repo_full_name = f"{owner}/{repo}"
+            logger.info(f"Smart GitHub Mode: Detected {repo_full_name}")
+            
+            # Intentar obtener README directamente
+            # Primero listamos estructura para encontrar el nombre exacto del readme
+            structure = await scout.get_repository_structure(repo_full_name)
+            readme_path = None
+            
+            if "files" in structure:
+                for f in structure["files"]:
+                    if f["name"].lower().startswith("readme"):
+                        readme_path = f["path"]
+                        break
+            
+            if readme_path:
+                readme_res = await scout.download_file_content(repo_full_name, readme_path)
+                if readme_res.success:
+                    results.append(SearchResult(
+                        title=f"{repo_full_name} README",
+                        url=f"https://github.com/{repo_full_name}",
+                        snippet=readme_res.data[:2000], # Limitar tamaño
+                        source_type="ARCHITECTURE",
+                        date=datetime.now().strftime("%Y-%m-%d"),
+                    ))
+        
+        # 1. Búsqueda Universal (Solo si no encontramos nada directo o si queremos complementar)
+        # Si ya tenemos el README, DuckDuckGo es opcional, pero podemos buscar referencias extra.
+        # Para evitar el error de timeout/vacío, si ya tenemos GitHub, saltamos búsqueda web compleja.
+        
+        if not results:
+             # Fallback a búsqueda web si no hay URL o falló GitHub
+             results = await scout.universal_search(
+                query=task_description,
+                max_results=3,
+                modernity_years=2
+            )
+
         
         if not results:
              return ResearchReport(task_description, [], "No relevant external references found.")
@@ -513,7 +551,7 @@ class EvolutionAuditor:
             payload=prompt
         )
         
-        recommendation = response.get("content", "Review references manually.").strip()
+        recommendation = getattr(response, "content", "Review references manually.").strip()
         
         return ResearchReport(task_description, results, recommendation)
 

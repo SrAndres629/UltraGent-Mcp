@@ -24,7 +24,7 @@ from typing import Any, Optional
 
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer # Lazy loaded
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -404,7 +404,7 @@ class CodeLibrarian:
         
         # Componentes
         self._extractor = SkeletonExtractor()
-        self._embedder: Optional[SentenceTransformer] = None
+        self._embedder: Any = None # Lazy loaded SentenceTransformer
         self._lock = Lock()
         
         # Estadísticas
@@ -416,7 +416,7 @@ class CodeLibrarian:
         
         logger.info(f"CodeLibrarian inicializado en {self._persist_dir}")
     
-    def _get_embedder(self) -> SentenceTransformer:
+    def _get_embedder(self) -> Any:
         """Lazy-load del modelo de embeddings con GPU."""
         if self._embedder is None:
             # Detectar dispositivo
@@ -427,6 +427,12 @@ class CodeLibrarian:
                 device = "cpu"
             
             logger.info(f"Cargando modelo de embeddings en {device}...")
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError:
+                 logger.error("sentence_transformers not installed")
+                 raise
+
             self._embedder = SentenceTransformer(
                 EMBEDDING_MODEL,
                 device=device,

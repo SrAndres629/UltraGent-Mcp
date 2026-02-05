@@ -1,8 +1,8 @@
 # 🎛️ ULTRAGENT HUD v2.0
 
-> **Last Update:** 2026-02-04 20:14:54
-> **Mission:** Sistema en espera de misión
-> **Uptime:** 00:00:09
+> **Last Update:** 2026-02-04 22:59:45
+> **Mission:** EVOLUTION 002: Auditar Memora (https://github.com/agentic-mcp-tools/memora) e integrar lógica de Grafos de Conocimiento en Vision.py
+> **Uptime:** 00:05:05
 
 ---
 
@@ -10,13 +10,13 @@
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| MCP Server | 🟢 Online | v2.0 - 24 tools |
+| MCP Server | 🟢 Online | v2.0 - 25 tools |
 | Sentinel | 🟡 Idle | 0 events |
 | Router | 🟢 Ready | 0 tokens used |
 | Librarian | 🟢 Ready | 0 docs indexed |
-| Scout | 🟡 No Token | 0 searches |
+| Scout | 🟢 Ready | 0 searches |
 | Evolution | 🟢 Ready | 0 audits |
-| Mechanic | 🟡 No Docker | Docker: Offline |
+| Mechanic | 🟢 Ready | Docker: Available |
 | Vision | 🟢 Ready | 0 scans |
 
 
@@ -43,7 +43,7 @@
 
 ## 👁️ ARCHITECTURE SNAPSHOT
 
-![Architecture](C:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent\.ai\reports\architecture_map_20260204_200806.png)
+![Architecture](c:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent\.ai\reports\architecture_map_20260204_200806.png)
 
 ---
 

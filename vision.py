@@ -19,7 +19,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
+from cortex import get_cortex
 
 import matplotlib
 matplotlib.use('Agg')  # Backend sin GUI
@@ -71,6 +72,9 @@ class DependencyNode:
     file_path: Optional[str] = None
     line_count: int = 0
     is_external: bool = False
+    tags: List[str] = field(default_factory=list)
+    importance: float = 1.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> dict:
         return {
@@ -79,6 +83,9 @@ class DependencyNode:
             "file_path": self.file_path,
             "line_count": self.line_count,
             "is_external": self.is_external,
+            "tags": self.tags,
+            "importance": self.importance,
+            "metadata": self.metadata,
         }
 
 
@@ -185,6 +192,7 @@ class VisionArchitect:
             "cycles_found": 0,
         }
         
+        self._cortex = get_cortex()
         logger.info(f"VisionArchitect inicializado: {self._project_root}")
     
     def scan_project(
@@ -255,6 +263,31 @@ class VisionArchitect:
                         target=target,
                         edge_type="import",
                     ))
+        
+        # Inyectar MEMORIAS del Cortex
+        try:
+            memories = self._cortex.get_all_memories()
+            for m in memories:
+                node_id = f"mem_{m.id}"
+                nodes[node_id] = DependencyNode(
+                    name=f"Memory #{m.id}",
+                    node_type="memory",
+                    tags=m.tags,
+                    importance=m.importance,
+                    metadata={"content": m.content}
+                )
+                
+                # Intentar vincular memoria a archivos por tags
+                for tag in m.tags:
+                    for name, node in nodes.items():
+                        if node.node_type == "file" and tag.lower() in name.lower():
+                            edges.append(DependencyEdge(
+                                source=node_id,
+                                target=name,
+                                edge_type="relates_to"
+                            ))
+        except Exception as e:
+            logger.warning(f"Error cargando memorias en Vision: {e}")
         
         with self._lock:
             self._stats["scans"] += 1
@@ -376,6 +409,8 @@ class VisionArchitect:
                 node_colors.append("#888888")  # Gris para externos
             elif data.get("node_type") == "file":
                 node_colors.append("#4CAF50")  # Verde para archivos
+            elif data.get("node_type") == "memory":
+                node_colors.append("#9C27B0")  # Púrpura para memorias
             else:
                 node_colors.append("#2196F3")  # Azul para otros
         
@@ -425,6 +460,7 @@ class VisionArchitect:
         # Leyenda
         legend_elements = [
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#4CAF50', markersize=10, label='Files'),
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#9C27B0', markersize=10, label='Memories'),
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#888888', markersize=10, label='External'),
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#FF4444', markersize=10, label='Cycles'),
         ]

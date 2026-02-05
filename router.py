@@ -313,10 +313,17 @@ class GeminiProvider(BaseProvider):
             }
         }
         
+        # Asegurar que el path del modelo sea correcto sin duplicar /models/
+        model_name = self.model.split("/")[-1]
+        clean_base = self.base_url.rstrip("/")
+        if clean_base.endswith("/models"):
+            clean_base = clean_base[:-7]
+            
         url = (
-            f"{self.base_url}/models/{self.model}:generateContent"
+            f"{clean_base}/models/{model_name}:generateContent"
             f"?key={self.api_key}"
         )
+        print(f"DEBUG - Final Gemini URL: {url}")
         
         async with httpx.AsyncClient(timeout=BASE_TIMEOUT) as client:
             response = await client.post(url, json=payload)
@@ -437,8 +444,8 @@ class OmniRouter:
         self._fallbacks: dict[Tier, list[Tier]] = {
             Tier.SPEED: [Tier.CODING, Tier.STRATEGIC],
             Tier.CODING: [Tier.SPEED, Tier.STRATEGIC],
-            Tier.VISUAL: [Tier.CODING, Tier.STRATEGIC],
-            Tier.STRATEGIC: [Tier.CODING],
+            Tier.VISUAL: [Tier.CODING, Tier.STRATEGIC, Tier.SPEED],
+            Tier.STRATEGIC: [Tier.CODING, Tier.SPEED],
         }
         
         self._budget = BudgetGuard()
