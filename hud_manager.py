@@ -21,6 +21,8 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Any, Optional
 
+from neuro_architect import get_neuro_architect
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -378,6 +380,9 @@ class HUDManager:
         mechanic = self._get_mechanic_status()
         vision = self._get_vision_status()
         
+        # Feed NeuroArchitect (Hyper-V)
+        self._feed_neuro_architect(mcp, sentinel, router, evolution)
+        
         # Human signal
         human_signal = ""
         if self._pending_human_signal:
@@ -432,6 +437,33 @@ class HUDManager:
         logger.debug("HUD refreshed")
         
         return content
+    
+    def _feed_neuro_architect(self, mcp, sentinel, router, evolution):
+        """Alimenta el sistema nervioso con datos frescos."""
+        try:
+            neuro = get_neuro_architect()
+            
+            # Router Stats -> Neuro
+            if "details" in router:
+                for model, stats in router["details"].items():
+                     neuro.ingest_telemetry(
+                         "router", 
+                         "execution", 
+                         {"model": model, "stats": stats}
+                     )
+                     
+            # Evolution -> Neuro
+            neuro.ingest_telemetry(
+                "evolution",
+                "variable_update",
+                {"fitness": evolution.get("fitness", 0)}
+            )
+            
+            # Exportar mapa para visualización
+            neuro.export_neuro_map()
+            
+        except Exception as e:
+            logger.warning(f"Failed to feed neuro architect: {e}")
     
     def get_full_status(self) -> dict:
         """Retorna resumen del estado completo del sistema."""

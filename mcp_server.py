@@ -1185,6 +1185,78 @@ def export_session(output_filename: str | None = None) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# NEURO-VISION TOOLS (Hyper-V)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+def analyze_impact(target_node: str) -> dict:
+    """
+    Predice el impacto de modificar un nodo (archivo/módulo).
+    
+    Analiza dependencias directas y efectos secundarios (ripple effect).
+    Útil antes de realizar cambios para evaluar riesgos.
+    
+    Args:
+        target_node: Nombre del nodo a modificar (ej: "router", "utils.py")
+        
+    Returns:
+        dict: {risk_score, direct_impact, ripple_effect}
+    """
+    logger.info(f"analyze_impact invocado: {target_node}")
+    try:
+        from neuro_architect import get_neuro_architect
+        neuro = get_neuro_architect()
+        prediction = neuro.analyze_impact(target_node)
+        return prediction.to_dict()
+    except Exception as e:
+        logger.error(f"Error en analyze_impact: {e}")
+        return {"error": str(e)}
+
+@mcp.tool()
+def trace_flow(start_node: str, end_node: str) -> dict:
+    """
+    Traza el flujo de conexión entre dos componentes.
+    
+    Muestra cómo viajan los datos o dependencias desde A hasta B.
+    
+    Args:
+        start_node: Nodo origen
+        end_node: Nodo destino
+        
+    Returns:
+        dict: {exists, path, steps}
+    """
+    logger.info(f"trace_flow invocado: {start_node} -> {end_node}")
+    try:
+        from neuro_architect import get_neuro_architect
+        neuro = get_neuro_architect()
+        return neuro.trace_flow(start_node, end_node)
+    except Exception as e:
+        logger.error(f"Error en trace_flow: {e}")
+        return {"error": str(e)}
+
+@mcp.tool()
+def get_brain_state() -> dict:
+    """
+    Retorna el estado completo del Sistema Nervioso (NeuroGraph).
+    
+    Incluye todos los nodos, conexiones, niveles de activación
+    y variables activas para visualización o análisis profundo.
+    
+    Returns:
+        dict: Estado completo del cerebro
+    """
+    logger.info("get_brain_state invocado")
+    try:
+        from neuro_architect import get_neuro_architect
+        neuro = get_neuro_architect()
+        return neuro.get_brain_state()
+    except Exception as e:
+        logger.error(f"Error en get_brain_state: {e}")
+        return {"error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
