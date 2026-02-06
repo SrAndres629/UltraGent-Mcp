@@ -30,8 +30,15 @@ from duckduckgo_search import DDGS  # Universal Search engine
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = Path(__file__).parent
+# SERVER_DIR is where the actual code resides
+SERVER_DIR = Path(__file__).parent
+# Target project where data will be stored
+PROJECT_ROOT = Path.cwd()
+
+# Prioritize local .env but allow global fallback for core configurations
 load_dotenv(PROJECT_ROOT / ".env")
+if not os.getenv("GITHUB_TOKEN"):
+    load_dotenv(SERVER_DIR / ".env")
 
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
 CACHE_DIR = AI_DIR / "cache" / "scout"
@@ -498,6 +505,92 @@ class ScoutAgent:
                 if name == "pyproject.toml" or name == "setup.cfg":
                     # Podría contener config de typing
                     repo.has_typing = True
+    
+    async def harvest_gold_standard(
+        self,
+        project_type: str,
+        language: str = "python",
+    ) -> SearchResult:
+        """
+        [HARDENED] Real World Benchmarking Protocol.
+        1. Buscar TOP repo (Stars/Quality).
+        2. Clonar repo real a temp dir.
+        3. Extraer estructura (AST) relevante.
+        4. Retornar código de referencia real.
+        """
+        query = f"stars:>1000 language:{language} {project_type} best practices"
+        
+        # 1. Búsqueda
+        repos = await self.search_repositories(query, language=language, max_results=3)
+        if not repos:
+            return SearchResult(success=False, error="No benchmark repos found")
+        
+        best_repo = repos[0]
+        
+        # 2. Clonación (Real)
+        import tempfile
+        import shutil
+        import subprocess
+        
+        # Temp dir for analysis
+        temp_dir = Path(tempfile.gettempdir()) / "scout_benchmarks" / best_repo.name
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        temp_dir.mkdir(parents=True, exist_ok=True)
+            
+        repo_url = best_repo.url
+        logger.info(f"🧬 Cloning Gold Standard: {repo_url} -> {temp_dir}")
+        
+        try:
+            # Clone depth 1 for speed
+            proc = await asyncio.create_subprocess_exec(
+                "git", "clone", "--depth", "1", repo_url, str(temp_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await proc.communicate()
+            
+            if proc.returncode != 0:
+                return SearchResult(success=False, error=f"Git Clone failed for {repo_url}")
+                
+            # 3. Extracción de Patrones (AST Parsing)
+            # Buscamos archivos relevantes al 'project_type'
+            # Heuristic: Find biggest/most import-heavy file as 'core'
+            
+            target_file_content = ""
+            max_complexity = 0
+            best_file_path = ""
+            
+            for file_path in temp_dir.rglob(f"*.{language.lower()[:2]}*"): # .py, .js, .ts
+                if "test" in str(file_path) or "migration" in str(file_path): continue
+                
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                    # Simple heuristic: heavily commented/documented code is likely good benchmark
+                    score = len(content)
+                    if score > max_complexity:
+                        max_complexity = score
+                        target_file_content = content
+                        best_file_path = str(file_path)
+                except:
+                    continue
+            
+            # Clean up
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            if not target_file_content:
+                return SearchResult(success=False, error="No readable code found in cloned repo")
+                
+            return SearchResult(
+                success=True,
+                result=ScoutResult(
+                    success=True, 
+                    data={"code": target_file_content, "source": repo_url, "file": best_file_path}
+                )
+            )
+            
+        except Exception as e:
+            return SearchResult(success=False, error=str(e))
     
     async def get_repository_structure(
         self,

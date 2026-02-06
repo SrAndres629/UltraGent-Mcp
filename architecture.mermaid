@@ -1,0 +1,559 @@
+graph TD
+    cortex["cortex (File)"]
+    hashlib["hashlib (Package)"]:::pkg
+    json["json (Package)"]:::pkg
+    logging["logging (Package)"]:::pkg
+    os["os (Package)"]:::pkg
+    sqlite3["sqlite3"]
+    dataclasses["dataclasses (Package)"]:::pkg
+    datetime["datetime (Package)"]:::pkg
+    pathlib["pathlib (Package)"]:::pkg
+    threading["threading (Package)"]:::pkg
+    typing["typing (Package)"]:::pkg
+    librarian["librarian"]
+    daemon["daemon (File)"]
+    sys["sys (Package)"]:::pkg
+    time["time (Package)"]:::pkg
+    watchdog["watchdog"]
+    metrics["metrics"]
+    evolution["evolution (File)"]
+    asyncio["asyncio (Package)"]:::pkg
+    enum["enum (Package)"]:::pkg
+    router["router"]
+    scout["scout"]
+    re["re (Package)"]:::pkg
+    mechanic["mechanic"]
+    git_senior_sync["git_senior_sync (File)"]
+    subprocess["subprocess"]
+    traceback["traceback"]
+    hud_manager["hud_manager (File)"]
+    neuro_architect["neuro_architect"]
+    shutil["shutil"]
+    mcp_server["mcp_server"]
+    sentinel["sentinel"]
+    vision["vision"]
+    infrastructure["infrastructure (File)"]
+    dotenv["dotenv"]
+    importlib["importlib"]
+    math["math (Package)"]:::pkg
+    chromadb["chromadb"]
+    rank_bm25["rank_bm25"]
+    numpy["numpy"]
+    tree_sitter["tree_sitter"]
+    torch["torch"]
+    sentence_transformers["sentence_transformers"]
+    main["main (File)"]
+    argparse["argparse"]
+    signal["signal"]
+    docker["docker"]
+    fastmcp["fastmcp"]
+    hud["hud"]
+    google["google"]
+    openai["openai"]
+    ast["ast"]
+    networkx["networkx"]
+    probe["probe (File)"]
+    httpx["httpx"]
+    abc["abc (Package)"]:::pkg
+    duckduckgo_search["duckduckgo_search"]
+    tempfile["tempfile (Package)"]:::pkg
+    base64["base64 (Package)"]:::pkg
+    collections["collections (Package)"]:::pkg
+    queue["queue"]
+    setup_fs["setup_fs (File)"]
+    setup_knowledge["setup_knowledge (File)"]
+    tester["tester (File)"]
+    pytest["pytest"]
+    ultragent_loop["ultragent_loop (File)"]
+    verify_hybrid["verify_hybrid (File)"]
+    verify_keys["verify_keys (File)"]
+    verify_memory["verify_memory (File)"]
+    verify_multi_project["verify_multi_project (File)"]
+    verify_native["verify_native (File)"]
+    verify_placeholders["verify_placeholders (File)"]
+    verify_suite["verify_suite (File)"]
+    verify_vis_neuro["verify_vis_neuro (File)"]
+    matplotlib["matplotlib"]
+    cleaner["cleaner (File)"]
+    debug_cortex["debug_cortex (File)"]
+    debug_evolution["debug_evolution (File)"]
+    debug_final_sf["debug_final_sf (File)"]
+    debug_gemini["debug_gemini (File)"]
+    debug_github["debug_github (File)"]
+    debug_groq["debug_groq (File)"]
+    debug_scout["debug_scout (File)"]
+    debug_siliconflow["debug_siliconflow (File)"]
+    debug_vision_v2["debug_vision_v2 (File)"]
+    demo_neuro_capabilities["demo_neuro_capabilities (File)"]
+    diagnose_clr["diagnose_clr (File)"]
+    ctypes["ctypes"]
+    clr_loader["clr_loader"]
+    pythonnet["pythonnet"]
+    manual_audit["manual_audit (File)"]
+    stress_test_sync["stress_test_sync (File)"]
+    random["random (Package)"]:::pkg
+    string["string"]
+    inspect["inspect"]
+    verify_debt_hunter["verify_debt_hunter (File)"]
+    verify_mechanic_v2["verify_mechanic_v2 (File)"]
+    verify_neuro_vision["verify_neuro_vision (File)"]
+    verify_optimization["verify_optimization (File)"]
+    verify_scout_v2["verify_scout_v2 (File)"]
+    Memory #1["Memory #1 (Memory)"]:::mem
+    Memory #2["Memory #2 (Memory)"]:::mem
+    Memory #3["Memory #3 (Memory)"]:::mem
+    Memory #4["Memory #4 (Memory)"]:::mem
+    Memory #5["Memory #5 (Memory)"]:::mem
+    Memory #6["Memory #6 (Memory)"]:::mem
+    Memory #7["Memory #7 (Memory)"]:::mem
+    Memory #8["Memory #8 (Memory)"]:::mem
+    cortex --> hashlib
+    cortex --> json
+    cortex --> logging
+    cortex --> os
+    cortex --> sqlite3
+    cortex --> dataclasses
+    cortex --> datetime
+    cortex --> pathlib
+    cortex --> threading
+    cortex --> typing
+    cortex --> librarian
+    daemon --> sys
+    daemon --> time
+    daemon --> logging
+    daemon --> pathlib
+    daemon --> watchdog
+    daemon --> watchdog
+    daemon --> metrics
+    evolution --> asyncio
+    evolution --> json
+    evolution --> logging
+    evolution --> os
+    evolution --> dataclasses
+    evolution --> datetime
+    evolution --> enum
+    evolution --> pathlib
+    evolution --> threading
+    evolution --> typing
+    evolution --> time
+    evolution --> librarian
+    evolution --> router
+    evolution --> scout
+    evolution --> re
+    evolution --> metrics
+    evolution --> cortex
+    evolution --> mechanic
+    evolution --> router
+    evolution --> re
+    git_senior_sync --> asyncio
+    git_senior_sync --> os
+    git_senior_sync --> subprocess
+    git_senior_sync --> sys
+    git_senior_sync --> logging
+    git_senior_sync --> pathlib
+    git_senior_sync --> sys
+    git_senior_sync --> router
+    git_senior_sync --> traceback
+    hud_manager --> asyncio
+    hud_manager --> json
+    hud_manager --> logging
+    hud_manager --> os
+    hud_manager --> dataclasses
+    hud_manager --> datetime
+    hud_manager --> pathlib
+    hud_manager --> threading
+    hud_manager --> typing
+    hud_manager --> neuro_architect
+    hud_manager --> shutil
+    hud_manager --> mcp_server
+    hud_manager --> sentinel
+    hud_manager --> router
+    hud_manager --> librarian
+    hud_manager --> scout
+    hud_manager --> evolution
+    hud_manager --> mechanic
+    hud_manager --> vision
+    infrastructure --> asyncio
+    infrastructure --> logging
+    infrastructure --> os
+    infrastructure --> pathlib
+    infrastructure --> typing
+    infrastructure --> dotenv
+    librarian --> hashlib
+    librarian --> importlib
+    librarian --> logging
+    librarian --> math
+    librarian --> os
+    librarian --> re
+    librarian --> dataclasses
+    librarian --> datetime
+    librarian --> pathlib
+    librarian --> threading
+    librarian --> typing
+    librarian --> chromadb
+    librarian --> chromadb
+    librarian --> rank_bm25
+    librarian --> numpy
+    librarian --> sys
+    librarian --> tree_sitter
+    librarian --> torch
+    librarian --> sentence_transformers
+    librarian --> tree_sitter
+    main --> argparse
+    main --> asyncio
+    main --> logging
+    main --> os
+    main --> signal
+    main --> sys
+    main --> time
+    main --> datetime
+    main --> pathlib
+    main --> threading
+    main --> typing
+    main --> hud_manager
+    main --> sentinel
+    main --> docker
+    main --> hud_manager
+    main --> mcp_server
+    main --> hud_manager
+    mcp_server --> asyncio
+    mcp_server --> logging
+    mcp_server --> os
+    mcp_server --> re
+    mcp_server --> sqlite3
+    mcp_server --> datetime
+    mcp_server --> pathlib
+    mcp_server --> typing
+    mcp_server --> dotenv
+    mcp_server --> fastmcp
+    mcp_server --> infrastructure
+    mcp_server --> librarian
+    mcp_server --> cortex
+    mcp_server --> hud
+    mcp_server --> scout
+    mcp_server --> evolution
+    mcp_server --> vision
+    mcp_server --> mechanic
+    mcp_server --> mechanic
+    mcp_server --> neuro_architect
+    mcp_server --> mechanic
+    mcp_server --> librarian
+    mcp_server --> neuro_architect
+    mcp_server --> cortex
+    mcp_server --> librarian
+    mcp_server --> router
+    mcp_server --> router
+    mcp_server --> router
+    mechanic --> os
+    mechanic --> sys
+    mechanic --> subprocess
+    mechanic --> time
+    mechanic --> json
+    mechanic --> logging
+    mechanic --> pathlib
+    mechanic --> typing
+    mechanic --> dotenv
+    mechanic --> google
+    mechanic --> asyncio
+    mechanic --> openai
+    mechanic --> asyncio
+    mechanic --> cortex
+    mechanic --> router
+    mechanic --> google
+    mechanic --> scout
+    mechanic --> evolution
+    mechanic --> cortex
+    mechanic --> librarian
+    mechanic --> vision
+    metrics --> ast
+    metrics --> math
+    metrics --> dataclasses
+    metrics --> typing
+    neuro_architect --> ast
+    neuro_architect --> json
+    neuro_architect --> logging
+    neuro_architect --> os
+    neuro_architect --> time
+    neuro_architect --> dataclasses
+    neuro_architect --> datetime
+    neuro_architect --> enum
+    neuro_architect --> pathlib
+    neuro_architect --> threading
+    neuro_architect --> typing
+    neuro_architect --> networkx
+    neuro_architect --> vision
+    neuro_architect --> librarian
+    neuro_architect --> cortex
+    probe --> asyncio
+    probe --> json
+    probe --> os
+    probe --> time
+    probe --> dataclasses
+    probe --> datetime
+    probe --> pathlib
+    probe --> typing
+    probe --> httpx
+    probe --> dotenv
+    probe --> re
+    router --> asyncio
+    router --> json
+    router --> logging
+    router --> os
+    router --> sqlite3
+    router --> time
+    router --> abc
+    router --> dataclasses
+    router --> datetime
+    router --> enum
+    router --> pathlib
+    router --> threading
+    router --> typing
+    router --> httpx
+    router --> dotenv
+    router --> json
+    router --> pathlib
+    router --> typing
+    router --> mcp_server
+    scout --> asyncio
+    scout --> json
+    scout --> logging
+    scout --> os
+    scout --> re
+    scout --> dataclasses
+    scout --> datetime
+    scout --> pathlib
+    scout --> threading
+    scout --> typing
+    scout --> httpx
+    scout --> dotenv
+    scout --> duckduckgo_search
+    scout --> tempfile
+    scout --> shutil
+    scout --> subprocess
+    scout --> base64
+    scout --> base64
+    sentinel --> json
+    sentinel --> logging
+    sentinel --> os
+    sentinel --> re
+    sentinel --> sqlite3
+    sentinel --> threading
+    sentinel --> collections
+    sentinel --> datetime
+    sentinel --> pathlib
+    sentinel --> queue
+    sentinel --> threading
+    sentinel --> typing
+    sentinel --> watchdog
+    sentinel --> watchdog
+    sentinel --> sys
+    setup_fs --> shutil
+    setup_fs --> sqlite3
+    setup_fs --> sys
+    setup_fs --> datetime
+    setup_fs --> pathlib
+    setup_knowledge --> logging
+    setup_knowledge --> sys
+    setup_knowledge --> time
+    setup_knowledge --> pathlib
+    setup_knowledge --> librarian
+    setup_knowledge --> traceback
+    tester --> sys
+    tester --> pytest
+    tester --> asyncio
+    tester --> logging
+    tester --> pathlib
+    tester --> typing
+    tester --> evolution
+    tester --> router
+    ultragent_loop --> asyncio
+    ultragent_loop --> logging
+    ultragent_loop --> time
+    ultragent_loop --> os
+    ultragent_loop --> pathlib
+    ultragent_loop --> datetime
+    ultragent_loop --> sys
+    ultragent_loop --> neuro_architect
+    ultragent_loop --> librarian
+    ultragent_loop --> mechanic
+    ultragent_loop --> cortex
+    ultragent_loop --> sentinel
+    verify_hybrid --> logging
+    verify_hybrid --> sys
+    verify_hybrid --> pathlib
+    verify_hybrid --> librarian
+    verify_keys --> os
+    verify_keys --> google
+    verify_memory --> logging
+    verify_memory --> sys
+    verify_memory --> shutil
+    verify_memory --> pathlib
+    verify_memory --> cortex
+    verify_memory --> librarian
+    verify_multi_project --> asyncio
+    verify_multi_project --> os
+    verify_multi_project --> pathlib
+    verify_multi_project --> sys
+    verify_multi_project --> mcp_server
+    verify_multi_project --> mcp_server
+    verify_native --> logging
+    verify_native --> sys
+    verify_native --> asyncio
+    verify_native --> pathlib
+    verify_native --> dotenv
+    verify_native --> mechanic
+    verify_placeholders --> logging
+    verify_placeholders --> json
+    verify_placeholders --> librarian
+    verify_suite --> asyncio
+    verify_suite --> logging
+    verify_suite --> sys
+    verify_suite --> pathlib
+    verify_suite --> librarian
+    verify_suite --> vision
+    verify_suite --> neuro_architect
+    verify_suite --> scout
+    verify_suite --> traceback
+    verify_suite --> traceback
+    verify_suite --> traceback
+    verify_suite --> traceback
+    verify_vis_neuro --> asyncio
+    verify_vis_neuro --> logging
+    verify_vis_neuro --> sys
+    verify_vis_neuro --> pathlib
+    verify_vis_neuro --> vision
+    verify_vis_neuro --> neuro_architect
+    verify_vis_neuro --> traceback
+    vision --> ast
+    vision --> logging
+    vision --> os
+    vision --> re
+    vision --> dataclasses
+    vision --> datetime
+    vision --> pathlib
+    vision --> threading
+    vision --> typing
+    vision --> cortex
+    vision --> matplotlib
+    vision --> matplotlib
+    vision --> networkx
+    cleaner --> os
+    cleaner --> re
+    cleaner --> pathlib
+    debug_cortex --> asyncio
+    debug_cortex --> sys
+    debug_cortex --> os
+    debug_cortex --> pathlib
+    debug_cortex --> dotenv
+    debug_cortex --> cortex
+    debug_evolution --> asyncio
+    debug_evolution --> sys
+    debug_evolution --> os
+    debug_evolution --> chromadb
+    debug_evolution --> librarian
+    debug_final_sf --> asyncio
+    debug_final_sf --> httpx
+    debug_final_sf --> os
+    debug_final_sf --> dotenv
+    debug_gemini --> asyncio
+    debug_gemini --> sys
+    debug_gemini --> os
+    debug_gemini --> logging
+    debug_gemini --> dotenv
+    debug_gemini --> router
+    debug_github --> asyncio
+    debug_github --> sys
+    debug_github --> os
+    debug_github --> json
+    debug_github --> scout
+    debug_groq --> asyncio
+    debug_groq --> sys
+    debug_groq --> os
+    debug_groq --> logging
+    debug_groq --> dotenv
+    debug_groq --> router
+    debug_groq --> traceback
+    debug_scout --> asyncio
+    debug_scout --> sys
+    debug_scout --> os
+    debug_scout --> traceback
+    debug_scout --> scout
+    debug_siliconflow --> asyncio
+    debug_siliconflow --> httpx
+    debug_siliconflow --> os
+    debug_siliconflow --> sys
+    debug_siliconflow --> dotenv
+    debug_vision_v2 --> asyncio
+    debug_vision_v2 --> sys
+    debug_vision_v2 --> os
+    debug_vision_v2 --> logging
+    debug_vision_v2 --> pathlib
+    debug_vision_v2 --> dotenv
+    debug_vision_v2 --> vision
+    debug_vision_v2 --> cortex
+    demo_neuro_capabilities --> json
+    demo_neuro_capabilities --> logging
+    demo_neuro_capabilities --> neuro_architect
+    diagnose_clr --> os
+    diagnose_clr --> sys
+    diagnose_clr --> ctypes
+    diagnose_clr --> pathlib
+    diagnose_clr --> clr_loader
+    diagnose_clr --> pythonnet
+    diagnose_clr --> traceback
+    manual_audit --> asyncio
+    manual_audit --> sys
+    manual_audit --> os
+    manual_audit --> json
+    manual_audit --> datetime
+    manual_audit --> evolution
+    manual_audit --> scout
+    manual_audit --> traceback
+    stress_test_sync --> asyncio
+    stress_test_sync --> logging
+    stress_test_sync --> sys
+    stress_test_sync --> time
+    stress_test_sync --> pathlib
+    stress_test_sync --> random
+    stress_test_sync --> string
+    stress_test_sync --> inspect
+    stress_test_sync --> mcp_server
+    stress_test_sync --> hud_manager
+    verify_debt_hunter --> sys
+    verify_debt_hunter --> pathlib
+    verify_debt_hunter --> json
+    verify_debt_hunter --> librarian
+    verify_debt_hunter --> neuro_architect
+    verify_mechanic_v2 --> asyncio
+    verify_mechanic_v2 --> logging
+    verify_mechanic_v2 --> os
+    verify_mechanic_v2 --> sys
+    verify_mechanic_v2 --> subprocess
+    verify_mechanic_v2 --> mechanic
+    verify_neuro_vision --> asyncio
+    verify_neuro_vision --> logging
+    verify_neuro_vision --> os
+    verify_neuro_vision --> pathlib
+    verify_neuro_vision --> neuro_architect
+    verify_optimization --> json
+    verify_optimization --> logging
+    verify_optimization --> sys
+    verify_optimization --> pathlib
+    verify_optimization --> neuro_architect
+    verify_scout_v2 --> asyncio
+    verify_scout_v2 --> os
+    verify_scout_v2 --> sys
+    verify_scout_v2 --> logging
+    verify_scout_v2 --> pathlib
+    verify_scout_v2 --> scout
+    verify_scout_v2 --> evolution
+    verify_scout_v2 --> mechanic
+    verify_scout_v2 --> mechanic
+    verify_scout_v2 --> mechanic
+    verify_scout_v2 --> shutil
+    mem_3 -.-> debug_vision_v2
+    mem_3 -.-> verify_neuro_vision
+    mem_5 -.-> debug_vision_v2
+    mem_5 -.-> verify_neuro_vision
+    classDef pkg fill:#f96,stroke:#333,stroke-width:2px;
+    classDef mem fill:#bbf,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5;

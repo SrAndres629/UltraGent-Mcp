@@ -62,10 +62,14 @@ class Memory:
 class Cortex:
     """Gestor de memoria atómica y conocimiento semántico."""
     
-    def __init__(self):
-        self._db_path = CORTEX_DB
+    def __init__(self, project_root: Optional[str] = None):
+        target_root = Path(project_root) if project_root else PROJECT_ROOT
+        ai_dir = target_root / os.getenv("AI_CORE_DIR", ".ai")
+        self._db_path = ai_dir / "cortex.db"
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        
         self._lock = Lock()
-        self._librarian = get_librarian()
+        self._librarian = get_librarian(project_root)
         self._init_db()
         logger.info(f"Cortex inicializado: {self._db_path}")
 
@@ -98,6 +102,10 @@ class Cortex:
         tags = tags or []
         meta = meta or {}
         
+        # Inyectar tags en metadata para persistencia vectorial coherente
+        if tags and "tags" not in meta:
+            meta["tags"] = ",".join(tags)
+
         with self._lock:
             with sqlite3.connect(self._db_path) as conn:
                 cursor = conn.execute(
@@ -107,9 +115,8 @@ class Cortex:
                 memory_id = cursor.lastrowid
                 
         # Indexar en Librarian (ChromaDB)
-        virtual_path = f"memory://{memory_id}"
         try:
-            # Ahora usamos la indexación real del Librarian
+            # Ahora usamos la indexación real del Librarian con metadata enriquecida
             self._librarian.index_memory(str(memory_id), content, tags)
             logger.info(f"Memoria [{memory_id}] guardada e indexada: {content[:50]}...")
         except Exception as e:
@@ -138,17 +145,70 @@ class Cortex:
                     content=row[1],
                     tags=row[2].split(",") if row[2] else [],
                     importance=row[3],
-                    created_at=datetime.fromisoformat(row[4]) if "T" in row[4] else row[4],
+                    created_at=datetime.fromisoformat(row[4]) if isinstance(row[4], str) and "T" in row[4] else row[4],
                     metadata=json.loads(row[5]) if row[5] else {}
                 ))
         return memories
 
-_cortex_instance = None
-def get_cortex():
-    global _cortex_instance
-    if _cortex_instance is None:
-        _cortex_instance = Cortex()
-    return _cortex_instance
+    def get_related_memories(self, node_name: str) -> List[Memory]:
+        """Busca memorias vinculadas a un nodo usando búsqueda vectorial semántica."""
+        node_clean = node_name.lower().replace(".py", "").replace("_", " ")
+        
+        # 1. Búsqueda semántica usando el nombre del nodo como query
+        # Esto encontrará memorias contextualmente relevantes, no solo coincidencia de texto
+        results = self._librarian.semantic_search(
+            query=f"concept or context related to {node_clean}", 
+            n_results=5,
+            node_type="memory"
+        )
+        
+        # 2. Mapear resultados a objetos Memory
+        memories = []
+        seen_ids = set()
+        
+        # Mapeo rápido de ID -> Memoria para recuperación O(1)
+        all_map = {m.id: m for m in self.get_all_memories()}
+        
+        for res in results:
+            # semantic_search retorna dicts con 'file_path' que es el ID de la memoria en este caso
+            try:
+                mem_id = int(res.get('file_path', '0')) # En index_memory usamos ID como path
+                if mem_id in all_map and mem_id not in seen_ids:
+                    memories.append(all_map[mem_id])
+                    seen_ids.add(mem_id)
+            except Exception:
+                continue
+                
+        # 3. Fallback a coincidencia exacta de tags si la búsqueda semántica es pobre
+        if not memories:
+            for m in all_map.values():
+                if any(node_clean in tag.lower() for tag in m.tags):
+                   memories.append(m)
+                
+        return sorted(memories, key=lambda x: x.importance, reverse=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SINGLETON
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_cortex_instance: Optional[Cortex] = None
+_cortex_lock = Lock()
+_current_cortex_project: Optional[str] = None
+
+def get_cortex(project_root: Optional[str] = None) -> Cortex:
+    """
+    Obtiene la instancia singleton del Cortex.
+    
+    Args:
+        project_root: Optional path to target project. If provided and different
+                      from current, a new Cortex instance is created.
+    """
+    global _cortex_instance, _current_cortex_project
+    with _cortex_lock:
+        if _cortex_instance is None or _current_cortex_project != project_root:
+            _cortex_instance = Cortex(project_root=project_root)
+            _current_cortex_project = project_root
+        return _cortex_instance
 
 if __name__ == "__main__":
     # Test rápido

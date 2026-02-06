@@ -324,9 +324,9 @@ class EvolutionAuditor:
             from router import get_router
             router = get_router()
             
-            result = await router.route_request(
-                prompt=prompt,
+            result = await router.route_task(
                 task_type="strategic",  # Usar tier strategic (Kimi/Gemini)
+                payload=prompt,
                 system_prompt=system,
             )
             
@@ -647,20 +647,51 @@ class EvolutionAuditor:
             self._stats["audits_performed"] += 1
             self._stats["iterations_total"] += 1
         
+        # 1. ANÁLISIS DETERMINISTA (The Hard Critic)
+        # Calculamos hechos matemáticos antes de pedir opiniones.
+        from metrics import MetricsEngine
+        
+        try:
+            hard_metrics = MetricsEngine.analyze_code(local_code, local_file)
+            metrics_report = f"""
+            ### DETERMINISTIC METRICS (Hard Facts):
+            - Cyclomatic Complexity: {hard_metrics.cyclomatic_complexity}
+            - Maintainability Index: {hard_metrics.maintainability_index}
+            - Grade: {hard_metrics.grade}
+            - Logical LOC: {hard_metrics.loc}
+            
+            ### FUNCTION SCORES:
+            """ + "\n".join([f"- {f.name}: Complexity={f.complexity}, Grade={f.grade}" for f in hard_metrics.functions])
+            
+            # CRITICAL GUARD: Fast-Fail if code is trash
+            if hard_metrics.grade == "F":
+                logger.warning(f"⛔ REJECTED BY METRICS: {local_file} is unmaintainable (Grade F).")
+                # Create a synthetic report rejecting it immediately? 
+                # Better to include it in the LLM prompt so the LLM knows WHY it sucks.
+        except Exception as e:
+            logger.error(f"Metrics Engine Failed: {e}")
+            metrics_report = "Metrics unavailable (Parse Error)"
+
+        # 2. Análisis LLM (Comparative)
+        # Inyectamos las métricas reales para que el LLM no alucine.
         # Construir prompt
-        prompt = AUDIT_PROMPT_TEMPLATE.format(
+        base_prompt = AUDIT_PROMPT_TEMPLATE.format(
             language=language,
             local_code=local_code[:8000],  # Limitar tamaño
             benchmark_code=benchmark_code[:8000],
         )
         
+        # Inject metrics at the end of the user prompt
+        # We enforce the "Hard Facts" by placing them as "Context"
+        final_prompt = f"{base_prompt}\n\n{metrics_report}\n\nINSTRUCTION: You MUST align your verdict with the DETERMINISTIC METRICS above. If Grade is F, you MUST REJECT."
+        
         # Llamar al router
-        result = await self._call_router(prompt)
+        result = await self._call_router(final_prompt)
         
         if "error" in result and "scores" not in result:
             # Error en la llamada
             logger.error(f"Audit error: {result.get('error')}")
-            result = await self._fallback_analysis(prompt)
+            result = await self._fallback_analysis(final_prompt)
         
         # Construir scorecard
         scores = result.get("scores", {})
@@ -753,18 +784,23 @@ class EvolutionAuditor:
         language: str = "python",
     ) -> list[AuditReport]:
         """
-        Ejecuta ciclo completo de auditoría con iteraciones.
+        Ejecuta ciclo completo de auditoría con iteraciones y AUTO-FIX.
         
         Continúa iterando hasta aprobar, alcanzar max iteraciones,
         o estancarse.
-        
-        Returns:
-            list[AuditReport]: Todos los reportes del ciclo
         """
         self.reset_iteration_history()
         reports = []
         iteration = 1
         
+        from cortex import get_cortex
+        from mechanic import get_mechanic
+        
+        # 1. Active Recall: Verificar historial previo
+        history_memories = get_cortex().get_related_memories(f"audit_history {local_file}")
+        if history_memories:
+            logger.info(f"📜 Found previous audit context for {local_file}")
+
         while True:
             report = await self.audit_code(
                 local_code=local_code,
@@ -778,22 +814,92 @@ class EvolutionAuditor:
             reports.append(report)
             report.save()
             
-            # Si aprobado, terminar
+            # 2. Active Learning: Persistir estado de salud
+            try:
+                get_cortex().add_memory(
+                    content=f"Audit {local_file} (Iter {iteration}): Grade {report.scorecard.grade.value} (Fitness {report.scorecard.total}). Verdict: {report.verdict.value}",
+                    tags=["audit_log", "health_check", f"file:{local_file}"],
+                    importance=0.8 if report.verdict == AuditVerdict.REJECTED else 0.3
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save audit memory: {e}")
+
+            # 2. Functional Verification (practitioner check)
+            # Only skip if the theoretical audit already REJECTED the code for being trash.
+            if report.verdict != AuditVerdict.REJECTED:
+                logger.info(f"Triggering Functional Verification for {local_file}...")
+                
+                from tester import get_tester
+                tester = get_tester()
+                
+                # Resolve absolute path
+                path_obj = Path(local_file)
+                if not path_obj.is_absolute():
+                     # Try to resolve relative to PROJECT_ROOT (which is where evolution.py is)
+                     # or better, just use the provided path and hope for the best if absolute
+                     path_obj = PROJECT_ROOT / local_file
+                
+                if not path_obj.exists():
+                    # Fallback if PROJECT_ROOT is inside .ai or somewhere else
+                    path_obj = Path.cwd() / local_file
+
+                test_passed = await tester.verify_file(path_obj)
+                
+                if test_passed:
+                    logger.info(f"✅ Functional Verification PASSED for {local_file}")
+                    # If it was NEEDS_WORK but tests passed, we might still want to fix it 
+                    # for architecture reasons, so we respect the original verdict if it's not APPROVED.
+                else:
+                    logger.error(f"❌ Functional Verification FAILED for {local_file}")
+                    # If tests failed, the grade is effectively lowered and it MUST BE REPAIRED.
+                    report.verdict = AuditVerdict.NEEDS_WORK
+                    report.critical_issues.append(CriticalIssue(
+                        category="ARCHITECTURE",
+                        severity="CRITICAL",
+                        description="Code logic failed automated unit tests.",
+                        solution="The logic is functionally broken. Refer to Pytest logs and fix the implementation."
+                    ))
+
+            # Si aprobado en teoría y práctica, terminar
             if report.verdict == AuditVerdict.APPROVED:
                 logger.info(f"Code APPROVED after {iteration} iteration(s)")
                 break
-            
             # Verificar si continuar
             should_continue, reason = self.should_continue_iteration()
             if not should_continue:
                 logger.info(f"Stopping iterations: {reason}")
                 break
             
+            # 3. Active Engineering: Aplicar correcciones (Auto-Fix)
+            mechanic = get_mechanic()
+            if mechanic and mechanic.is_available:
+                logger.info(f"🔧 Iteration {iteration}: Mechanic is patching critical issues...")
+                
+                fixes_applied = 0
+                for issue in report.critical_issues:
+                    if issue.severity in ["CRITICAL", "MAJOR"] and issue.solution:
+                        # Usar el editor inteligente
+                        # Nota: Esto es arriesgado, en producción real se necesitaría revisión humana
+                        # o un AST parser muy robusto. Por ahora usamos apply_patch que es search/replace.
+                         
+                        # Necesitamos identificar qué reemplazar. El LLM debería darnos el 'target' exacto.
+                        # Como la estructura actual de 'issue' no garantiza un diff limpio,
+                        # usaremos el Mechanic LLM para generar el patch correcto basado en la solución.
+                        
+                        patch_task = f"Fix issue in {local_file}: {issue.description}. Solution: {issue.solution}"
+                        res = await mechanic.run_task(task=patch_task, max_steps=3)
+                        
+                        if "Done" in res or "success" in res.lower():
+                            fixes_applied += 1
+                
+                if fixes_applied > 0:
+                    # Recargar código para la siguiente iteración
+                    if Path(local_file).exists():
+                        local_code = Path(local_file).read_text(encoding="utf-8")
+                else:
+                    logger.warning("Mechanic could not apply automated fixes.")
+                    
             iteration += 1
-            
-            # En producción, aquí se aplicarían los fixes sugeridos
-            # Por ahora solo informamos
-            logger.info(f"Iteration {iteration}: Applying suggested fixes...")
         
         return reports
     

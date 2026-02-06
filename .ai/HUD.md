@@ -1,8 +1,8 @@
 # 🎛️ ULTRAGENT HUD v2.0
 
-> **Last Update:** 2026-02-05 11:36:52
-> **Mission:** Stress test complete - System recovering
-> **Uptime:** 00:00:08
+> **Last Update:** 2026-02-06 02:56:54
+> **Mission:** Sistema en espera de misión
+> **Uptime:** 00:00:01
 
 ---
 
@@ -10,14 +10,14 @@
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| MCP Server | 🟢 Online | v2.0 - 9 tools |
+| MCP Server | 🟢 Online | v2.0 - 10 tools |
 | Sentinel | 🟡 Idle | 0 events |
 | Router | 🟢 Ready | 0 tokens used |
 | Librarian | 🟢 Ready | 0 docs indexed |
 | Scout | 🟢 Ready | 0 searches |
 | Evolution | 🟢 Ready | 0 audits |
 | Mechanic | ⚫ N/A | Docker: Unknown |
-| Vision | 🟢 Ready | 1 scans |
+| Vision | 🟢 Ready | 0 scans |
 
 
 
@@ -43,7 +43,7 @@
 
 ## 👁️ ARCHITECTURE SNAPSHOT
 
-![Architecture](C:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent\.ai\reports\architecture_map_20260204_200806.png)
+![Architecture](c:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent\.ai\reports\architecture_map_20260206_025526.png)
 
 ---
 

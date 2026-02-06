@@ -51,10 +51,14 @@ DEBT_PATTERNS = {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURACIÓN
+# CONFIGURACIÓN (DYNAMIC CONTEXT)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = Path(__file__).parent
+# Global installation dir for models/plugins
+SERVER_DIR = Path(__file__).parent
+# Target project where data will be stored
+PROJECT_ROOT = Path.cwd()
+
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
 CHROMA_DIR = AI_DIR / "chroma"
 
@@ -81,6 +85,7 @@ LANGUAGE_GRAMMARS: dict[str, tuple[str, str]] = {
     ".jsx": ("tree_sitter_javascript", "javascript"),
     ".ts": ("tree_sitter_typescript", "typescript"),
     ".tsx": ("tree_sitter_typescript", "tsx"),
+    ".html": ("tree_sitter_html", "html"),
 }
 
 # Nodos AST a extraer por lenguaje
@@ -103,6 +108,11 @@ EXTRACTION_NODES: dict[str, list[str]] = {
         "method_definition",
         "interface_declaration",
         "type_alias_declaration",
+    ],
+    "html": [
+        "element",
+        "script_element",
+        "style_element",
     ],
 }
 
@@ -353,12 +363,34 @@ class SkeletonExtractor:
             raise FileNotFoundError(f"Archivo no encontrado: {file_path}")
         
         extension = path.suffix.lower()
+        
+        # Simple fallback for HTML or other non-code files
+        if extension == ".html":
+            try:
+                source = path.read_bytes()
+                file_hash = hashlib.md5(source).hexdigest()
+                logger.info(f"HTML detected, using basic indexing for {path.name}")
+                return [CodeSkeleton(
+                    name=path.name,
+                    node_type="template",
+                    signature=f"HTML Template: {path.name}",
+                    docstring=f"Web template file at {file_path}",
+                    file_path=str(path.absolute()),
+                    start_line=1,
+                    end_line=len(source.splitlines()),
+                    language="html",
+                    file_hash=file_hash
+                )]
+            except Exception as e:
+                logger.error(f"Error en fallback HTML: {e}")
+                # Seguir intento normal si falla el fallback
+        
         parser, lang = self._get_parser(extension)
         
         try:
             source = path.read_bytes()
             file_hash = hashlib.md5(source).hexdigest()
-            
+
             tree = parser.parse(source)
             
             if tree.root_node is None:
@@ -404,8 +436,10 @@ class CodeLibrarian:
     almacenamiento vectorial persistente.
     """
     
-    def __init__(self, persist_dir: Optional[Path] = None):
-        self._persist_dir = persist_dir or CHROMA_DIR
+    def __init__(self, project_root: Optional[str] = None):
+        target_root = Path(project_root) if project_root else PROJECT_ROOT
+        ai_dir = target_root / os.getenv("AI_CORE_DIR", ".ai")
+        self._persist_dir = ai_dir / "chroma"
         self._persist_dir.mkdir(parents=True, exist_ok=True)
         
         # Inicializar ChromaDB
@@ -638,93 +672,20 @@ class CodeLibrarian:
         finally:
              self._bm25 = None # Invalidate BM25 index
     
-    def semantic_search(
-        self,
-        query: str,
-        n_results: int = 5,
-        language: Optional[str] = None,
-        node_type: Optional[str] = None,
-    ) -> list[dict]:
-        """
-        Búsqueda semántica en la biblioteca de código.
-        
-        Args:
-            query: Consulta en lenguaje natural
-            n_results: Número máximo de resultados
-            language: Filtrar por lenguaje (python, javascript, etc.)
-            node_type: Filtrar por tipo (function, class, method)
-            
-        Returns:
-            list[dict]: Resultados ordenados por relevancia
-        """
+    def _build_bm25(self):
+        """Construye el índice de keyword search (BM25) de forma lazy."""
         try:
-            # Generar embedding de la query
-            embedder = self._get_embedder()
-            query_embedding = embedder.encode(
-                [query],
-                batch_size=1,
-                show_progress_bar=False,
-                convert_to_numpy=True,
-            )
+            results = self._skeleton_collection.get(include=["documents"])
+            if not results["ids"]: return
             
-            # Construir filtro
-            where_filter = None
-            if language or node_type:
-                conditions = []
-                if language:
-                    conditions.append({"language": language})
-                if node_type:
-                    conditions.append({"node_type": node_type})
-                
-                if len(conditions) == 1:
-                    where_filter = conditions[0]
-                else:
-                    where_filter = {"$and": conditions}
-            
-            # Special case for memory: if no results in code, try searching by content 
-            # (In a real system this would use a separate collection or different indexing)
-            if node_type == "memory" and not where_filter:
-                 where_filter = {"node_type": "memory"}
-
-            # Ejecutar búsqueda
-            results = self._skeleton_collection.query(
-                query_embeddings=query_embedding.tolist(),
-                n_results=n_results,
-                where=where_filter,
-                include=["metadatas", "documents", "distances"],
-            )
-            
-            # Actualizar estadísticas
-            with self._lock:
-                self._stats["queries_executed"] += 1
-            
-            # Formatear resultados
-            formatted = []
-            if results["ids"] and results["ids"][0]:
-                for i, doc_id in enumerate(results["ids"][0]):
-                    metadata = results["metadatas"][0][i]
-                    distance = results["distances"][0][i] if results["distances"] else None
-                    
-                    formatted.append({
-                        "id": doc_id,
-                        "name": metadata.get("name"),
-                        "node_type": metadata.get("node_type"),
-                        "signature": results["documents"][0][i],
-                        "file_path": metadata.get("file_path"),
-                        "start_line": metadata.get("start_line"),
-                        "end_line": metadata.get("end_line"),
-                        "language": metadata.get("language"),
-                        "parent": metadata.get("parent"),
-                        "relevance": 1 - distance if distance else None,
-                    })
-            
-            logger.info(f"Búsqueda '{query[:30]}...': {len(formatted)} resultados")
-            return formatted
-            
+            logger.info(f"Reconstruyendo índice BM25 para {len(results['ids'])} elementos...")
+            self._bm25_ids = results["ids"]
+            self._bm25_corpus = [doc.lower().split() for doc in results["documents"]]
+            self._bm25 = BM25Okapi(self._bm25_corpus)
         except Exception as e:
-            logger.error(f"Fallo en Hybrid Search: {e}")
-            return []
+            logger.error(f"Error construyendo BM25: {e}")
 
+    # The hybrid search implementation follows below (replacing both previous semantic_search definitions)
     def semantic_search(
         self,
         query: str,
@@ -767,54 +728,53 @@ class CodeLibrarian:
             doc_scores: Dict[str, float] = {}
             
             # Process Vector Ranks
+            # Boost vector results slightly for semantic queries
             for rank, res in enumerate(vector_results):
                 doc_id = res['id']
-                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1 / (k + rank + 1))
+                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1.2 / (k + rank + 1))
                 
             # Process BM25 Ranks
+            # BM25 is great for exact symbol hits (atomic)
             for rank, doc_id in enumerate(bm25_results):
-                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1 / (k + rank + 1))
+                doc_scores[doc_id] = doc_scores.get(doc_id, 0) + (1.0 / (k + rank + 1))
             
             # 5. Sort & Fetch Final Metadata
-            sorted_ids = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[:n_results]
-            final_top_ids = [x[0] for x in sorted_ids]
+            sorted_candidates = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)[:n_results]
+            final_top_ids = [x[0] for x in sorted_candidates]
             
-            # Recuperar metadata completa de los ganadores (si no la tenemos ya)
-            # Optimizacion: Usar los objetos de vector_results si existen
+            # Recuperar metadata completa de los ganadores
             final_results = []
             
-            # Map id -> object from vector results
+            # Map id -> object from vector results for faster lookup
             vector_map = {res['id']: res for res in vector_results}
             
             for doc_id in final_top_ids:
                 if doc_id in vector_map:
                     item = vector_map[doc_id]
-                    item['score'] = doc_scores[doc_id]
+                    item['relevance'] = doc_scores[doc_id] # Updated combined score
                     item['method'] = 'hybrid'
                     final_results.append(item)
                 else:
                     # Cache miss (BM25 only hit), fetch from DB
-                    # Esto es lento, pero necesario para "Keyword only" hits
                     try:
-                        record = self._skeleton_collection.get(ids=[doc_id])
+                        record = self._skeleton_collection.get(ids=[doc_id], include=["metadatas", "documents"])
                         if record['ids']:
-                             meta = record['metadatas'][0]
-                             # Aplica filtros tardíos si es necesario
-                             # (Simplificado: Si filtraste por lang en vector, podrías tener basura de BM25 aquí)
-                             # TODO: Implementar filtrado robusto para BM25
-                             
-                             final_results.append({
-                                'id': doc_id,
-                                'name': meta.get('name'),
-                                'node_type': meta.get('node_type'),
-                                'signature': record['documents'][0],
-                                'file_path': meta.get('file_path'),
-                                'score': doc_scores[doc_id],
-                                'method': 'keyword',
-                                'start_line': meta.get('start_line'), # Added missing fields
-                                'end_line': meta.get('end_line'),
+                            metadata = record['metadatas'][0]
+                            final_results.append({
+                                "id": doc_id,
+                                "name": metadata.get("name"),
+                                "node_type": metadata.get("node_type"),
+                                "signature": record['documents'][0],
+                                "file_path": metadata.get("file_path"),
+                                "start_line": metadata.get("start_line"),
+                                "end_line": metadata.get("end_line"),
+                                "language": metadata.get("language"),
+                                "parent": metadata.get("parent"),
+                                "relevance": doc_scores[doc_id],
+                                "method": "keyword"
                             })
-                    except Exception: pass
+                    except Exception as e:
+                        logger.warning(f"Error fetching BM25 only result {doc_id}: {e}")
 
             logger.info(f"Hybrid Search '{query[:20]}': {len(final_results)} resultados (Vector={len(vector_results)}, BM25={len(bm25_results)})")
             return final_results
@@ -1245,14 +1205,22 @@ class CodeLibrarian:
 
 _librarian_instance: Optional[CodeLibrarian] = None
 _librarian_lock = Lock()
+_current_lib_project: Optional[str] = None
 
 
-def get_librarian() -> CodeLibrarian:
-    """Obtiene la instancia singleton del Librarian."""
-    global _librarian_instance
+def get_librarian(project_root: Optional[str] = None) -> CodeLibrarian:
+    """
+    Obtiene la instancia singleton del Librarian.
+    
+    Args:
+        project_root: Optional path to target project. If provided and different
+                      from current, a new CodeLibrarian instance is created.
+    """
+    global _librarian_instance, _current_lib_project
     with _librarian_lock:
-        if _librarian_instance is None:
-            _librarian_instance = CodeLibrarian()
+        if _librarian_instance is None or _current_lib_project != project_root:
+            _librarian_instance = CodeLibrarian(project_root=project_root)
+            _current_lib_project = project_root
         return _librarian_instance
 
 

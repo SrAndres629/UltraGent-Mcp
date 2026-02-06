@@ -1,0 +1,7 @@
+{
+  "siliconflow:generate_code": 0.0004,
+  "groq:generate_code": 0.8747,
+  "gemini:generate_code": 0.0004,
+  "siliconflow:strategic": 0.5905,
+  "groq:strategic": 1.0308
+}

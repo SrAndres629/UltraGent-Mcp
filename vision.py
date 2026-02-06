@@ -529,6 +529,53 @@ class VisionArchitect:
         
         return report
     
+    async def generate_mermaid_graph(
+        self,
+        include_patterns: Optional[list[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
+    ) -> str:
+        """
+        Genera una representación en formato Mermaid.js del grafo de dependencias.
+        
+        Returns:
+            str: Contenido en formato Mermaid.
+        """
+        nodes, edges = self.scan_project(include_patterns, exclude_patterns)
+        
+        mermaid_lines = ["graph TD"]
+        
+        # 1. Definir Nodos con estilos
+        for node in nodes:
+            # Escapar nombres para Mermaid
+            clean_name = str(node.name).replace(".", "_").replace("-", "_")
+            if node.node_type == "file":
+                mermaid_lines.append(f'    {clean_name}["{node.name} (File)"]')
+            elif node.node_type == "package":
+                mermaid_lines.append(f'    {clean_name}["{node.name} (Package)"]:::pkg')
+            elif node.node_type == "memory":
+                mermaid_lines.append(f'    {clean_name}["{node.name} (Memory)"]:::mem')
+            else:
+                mermaid_lines.append(f'    {clean_name}["{node.name}"]')
+
+        # 2. Definir Aristas
+        for edge in edges:
+            source = str(edge.source).replace(".", "_").replace("-", "_")
+            target = str(edge.target).replace(".", "_").replace("-", "_")
+            
+            # Flecha según el tipo de relación
+            if edge.edge_type == "import":
+                mermaid_lines.append(f"    {source} --> {target}")
+            elif edge.edge_type == "relates_to":
+                mermaid_lines.append(f"    {source} -.-> {target}")
+            else:
+                mermaid_lines.append(f"    {source} --- {target}")
+
+        # 3. Estilos
+        mermaid_lines.append("    classDef pkg fill:#f96,stroke:#333,stroke-width:2px;")
+        mermaid_lines.append("    classDef mem fill:#bbf,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5;")
+        
+        return "\n".join(mermaid_lines)
+
     def get_status(self) -> dict:
         """Retorna estado del Vision."""
         return {
@@ -556,14 +603,26 @@ class VisionArchitect:
 
 _vision_instance: Optional[VisionArchitect] = None
 _vision_lock = Lock()
+_current_project_root: Optional[Path] = None
 
 
-def get_vision() -> VisionArchitect:
-    """Obtiene la instancia singleton del Vision."""
-    global _vision_instance
+def get_vision(project_root: Optional[str] = None) -> VisionArchitect:
+    """
+    Obtiene la instancia singleton del Vision.
+    
+    Args:
+        project_root: Optional path to target project. If provided and different
+                      from current, a new VisionArchitect instance is created.
+    """
+    global _vision_instance, _current_project_root
+    
+    target_root = Path(project_root) if project_root else PROJECT_ROOT
+    
     with _vision_lock:
-        if _vision_instance is None:
-            _vision_instance = VisionArchitect()
+        # If project_root changed, recreate the instance
+        if _vision_instance is None or _current_project_root != target_root:
+            _vision_instance = VisionArchitect(project_root=target_root)
+            _current_project_root = target_root
         return _vision_instance
 
 

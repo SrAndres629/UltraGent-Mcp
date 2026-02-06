@@ -58,25 +58,44 @@ async def with_timeout(
             "error_type": "TIMEOUT"
         }
     except Exception as e:
+        error_msg = str(e)
+        error_guide = get_error_guide(error_msg)
         return {
             "success": False,
-            "error": str(e),
+            "error": error_msg,
             "error_type": type(e).__name__,
-            "suggestion": "Check logs for details"
+            "suggestion": error_guide["fix"],
+            "error_category": error_guide["category"],
+            "error_guide_url": error_guide["guide"]
         }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURACIÓN DE PATHS
+# CONFIGURACIÓN DE PATHS (DYNAMIC CONTEXT)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = Path.cwd() # Runs in context of the target project
+# SERVER_DIR is where the actual code resides
+SERVER_DIR = Path(__file__).parent
+# Target project where data will be stored
+PROJECT_ROOT = Path.cwd()
+
+# Prioritize local .env but allow global fallback for core configurations
 load_dotenv(PROJECT_ROOT / ".env")
+if not os.getenv("GITHUB_TOKEN"):
+    load_dotenv(SERVER_DIR / ".env")
 
 AI_DIR = PROJECT_ROOT / os.getenv("AI_CORE_DIR", ".ai")
+CACHE_DIR = AI_DIR / "cache" / "scout"
+REPORTS_DIR = AI_DIR / "reports"
 MEMORY_FILE = AI_DIR / "memory.md"
 HUD_FILE = AI_DIR / "HUD.md"
 TASKS_DB = AI_DIR / "tasks.db"
 LOGS_DIR = AI_DIR / "logs"
+
+# Ensure core directories exist in context
+AI_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -178,104 +197,6 @@ mcp = FastMCP(
 )
 
 
-@mcp.tool()
-def sync_system_status(action: str = "sync", mission_goal: str = None, export_name: str = None) -> dict:
-    """
-    Centro de Control y Observabilidad de Ultragent.
-    
-    Unifica la sincronización de estado, la gestión de objetivos de misión
-    y la exportación de bitácoras de sesión.
-    
-    Acciones:
-    - 'sync': Snapshot 360 de salud, misiones, tokens y eventos.
-    - 'set_goal': Define el objetivo actual (Mission Goal) del sistema.
-    - 'export': Genera un ZIP con toda la memoria y logs de la sesión.
-    """
-    logger.info(f"sync_system_status: action={action}")
-    
-    try:
-        from hud_manager import get_hud_manager
-        hud = get_hud_manager()
-
-        if action == "set_goal":
-            if not mission_goal: return {"error": "Se requiere 'mission_goal'"}
-            hud.set_mission_goal(mission_goal)
-            hud.refresh_dashboard(force=True)
-            return {"success": True, "goal": mission_goal}
-
-        elif action == "export":
-            zip_path = hud.export_session(export_name)
-            return {"success": True, "export_path": zip_path}
-
-        elif action == "reset":
-            try:
-                from sentinel import get_sentinel
-                get_sentinel().clear_signals()
-                return {"success": True, "message": "Señales de Sentinel reiniciadas"}
-            except Exception as e: return {"error": str(e)}
-
-        elif action == "health":
-            health = {"status": "ok", "checks": {}}
-            import docker
-            try:
-                client = docker.from_env()
-                health["checks"]["docker"] = "online" if client.ping() else "error"
-            except Exception: health["checks"]["docker"] = "offline"
-            health["checks"]["db"] = "ok" if TASKS_DB.exists() else "missing"
-            health["checks"]["cortex"] = "ok" if MEMORY_FILE.exists() else "warning"
-            return health
-
-        elif action == "sync":
-            status = {
-                "timestamp": datetime.now().isoformat(),
-                "core": {"status": "online", "ai_dir": str(AI_DIR)},
-                "hud": hud.get_full_status(),
-                "sentinel": {"running": False, "events": 0},
-                "scout": {}, "evolution": {}, "librarian": {},
-                "mechanic": {}, "vision": {},
-                "intelligence": {"total_tokens": 0, "tiers": {}}
-            }
-            # Carga perezosa de estados de módulos
-            try:
-                from sentinel import get_sentinel
-                s_stat = get_sentinel().get_status()
-                status["sentinel"] = {"running": s_stat["running"], "events": s_stat["events_processed"]}
-            except Exception: pass
-            
-            try:
-                from scout import get_scout
-                from evolution import get_evolution
-                status["scout"] = get_scout().get_status()
-                status["evolution"] = get_evolution().get_status()
-            except Exception: pass
-
-            try:
-                from librarian import get_librarian
-                status["librarian"] = get_librarian().get_status()
-            except Exception: pass
-
-            try:
-                from mechanic import get_mechanic
-                from vision import get_vision
-                status["mechanic"] = get_mechanic().get_status()
-                status["vision"] = get_vision().get_status()
-            except Exception: pass
-
-            try:
-                from router import get_router
-                usage = get_router().get_token_usage()
-                status["intelligence"] = {"total_tokens": usage["total_used"], "tiers": usage["by_tier"]}
-            except Exception: pass
-
-            return status
-        else:
-            return {"error": f"Acción desconocida: {action}"}
-            
-    except Exception as e:
-        logger.error(f"Error en sync_system_status: {e}")
-        return {"error": str(e)}
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # MISSION CONTROL TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -287,13 +208,14 @@ def sync_system_status(action: str = "sync", mission_goal: str = None, export_na
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def semantic_search(
+async def semantic_search(
     action: str,
     query: str = "",
     file_path: str = "",
     n_results: int = 5,
     language: str = "",
-    node_type: str = ""
+    node_type: str = "",
+    project_root: str = ""
 ) -> dict:
     """
     Descubrimiento Semántico y Arquitectónico de Código.
@@ -305,29 +227,49 @@ def semantic_search(
     - 'search': Búsqueda semántica (NLP) de lógica y funciones.
     - 'skeleton': Obtiene la estructura funcional de un archivo (firmas).
     - 'index': Indexa o re-escanea un archivo para la base de datos vectorial.
+    
+    Args:
+        project_root: Optional path to target project directory.
     """
-    logger.info(f"semantic_search: action={action}, query='{query}', file='{file_path}'")
+    logger.info(f"semantic_search: action={action}, query='{query}', file='{file_path}', project_root='{project_root}'")
     
     try:
         from librarian import get_librarian
-        lib = get_librarian()
+        lib = get_librarian(project_root) if project_root else get_librarian()
         
         if action == "search":
-            results = lib.semantic_search(
-                query=query, n_results=n_results, 
-                language=language if language else None,
-                node_type=node_type if node_type else None
+            result = await with_timeout(
+                asyncio.to_thread(
+                    lib.semantic_search,
+                    query=query, n_results=n_results, 
+                    language=language if language else None,
+                    node_type=node_type if node_type else None
+                ),
+                timeout=15.0,
+                operation_name="semantic_search"
             )
-            return {"success": True, "results": results}
+            if not result["success"]: return result
+            return {"success": True, "results": result["result"]}
             
         elif action == "skeleton":
             if not file_path: return {"error": "Se requiere 'file_path'"}
-            skeleton = lib.get_file_skeleton(file_path)
-            return skeleton
+            result = await with_timeout(
+                asyncio.to_thread(lib.get_file_skeleton, file_path),
+                timeout=10.0,
+                operation_name="get_file_skeleton"
+            )
+            if not result["success"]: return result
+            return result["result"]
             
         elif action == "index":
             if not file_path: return {"error": "Se requiere 'file_path'"}
-            return lib.index_file(file_path)
+            result = await with_timeout(
+                asyncio.to_thread(lib.index_file, file_path),
+                timeout=25.0,
+                operation_name="index_file"
+            )
+            if not result["success"]: return result
+            return result["result"]
 
         elif action == "find_usage":
             if not query: return {"error": "Se requiere 'query' (nombre del símbolo)"}
@@ -365,7 +307,13 @@ def semantic_search(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def manage_cortex(action: str, content: str = "", tags: list[str] = None, importance: float = 1.0) -> dict:
+async def manage_cortex(
+    action: str, 
+    content: str = "", 
+    tags: list[str] = None, 
+    importance: float = 1.0,
+    project_root: str = ""
+) -> dict:
     """
     Gestión integral del Cortex (Memoria de Proyecto .ai).
     
@@ -374,32 +322,66 @@ def manage_cortex(action: str, content: str = "", tags: list[str] = None, import
     - 'list': Retorna todos los recuerdos del proyecto.
     - 'read_raw': Retorna el contenido bruto de memory.md.
     - 'init': Inicializa la estructura cerebral en un nuevo proyecto.
+    
+    Args:
+        project_root: Optional path to target project directory.
     """
-    logger.info(f"manage_cortex: action={action}")
+    logger.info(f"manage_cortex: action={action}, project_root={project_root}")
     try:
-        from cortex import get_cortex
-        cortex = get_cortex()
+        from cortex import get_cortex, AI_DIR
+        ctx = get_cortex(project_root) if project_root else get_cortex()
         
         if action == "add":
-            mid = cortex.add_memory(content, tags, importance)
-            return {"success": True, "memory_id": mid}
+            result = await with_timeout(
+                asyncio.to_thread(ctx.add_memory, content, tags, importance),
+                timeout=10.0,
+                operation_name="cortex_add"
+            )
+            if not result["success"]: return result
+            return {"success": True, "memory_id": result["result"]}
+            
         elif action == "list":
-            memories = cortex.get_all_memories()
+            result = await with_timeout(
+                asyncio.to_thread(ctx.get_all_memories),
+                timeout=10.0,
+                operation_name="cortex_list"
+            )
+            if not result["success"]: return result
+            memories = result["result"]
             return {
                 "success": True, 
                 "memories": [
                     {"id": m.id, "content": m.content, "tags": m.tags, "importance": m.importance, "created_at": str(m.created_at)} for m in memories
                 ]
             }
+        elif action == "related": # NEW ACTION
+            if not content: return {"error": "Se requiere 'content' (node_name)"}
+            memories = ctx.get_related_memories(content)
+            return {
+                "success": True,
+                "memories": [
+                    {"content": m.content, "tags": m.tags, "importance": m.importance} for m in memories
+                ]
+            }
         elif action == "search":
             from librarian import get_librarian
             # Cross-module usage for semantic search in memory
-            results = get_librarian().semantic_search(query=content, n_results=5, node_type="memory")
-            return {"success": True, "results": results}
+            result = await with_timeout(
+                asyncio.to_thread(get_librarian(project_root).semantic_search, query=content, n_results=5, node_type="memory"),
+                timeout=15.0,
+                operation_name="cortex_search"
+            )
+            if not result["success"]: return result
+            return {"success": True, "results": result["result"]}
+            
         elif action == "read_raw":
             if not MEMORY_FILE.exists(): return {"error": "memory.md no encontrado"}
             return {"success": True, "content": MEMORY_FILE.read_text(encoding="utf-8")}
+            
         elif action == "init":
+            AI_DIR.mkdir(parents=True, exist_ok=True)
+            if not MEMORY_FILE.exists():
+                MEMORY_FILE.write_text("# Proyecto: .ai Memory\n\nArchivo de memoria de largo plazo.", encoding="utf-8")
             return {"success": True, "message": "Cortex inicializado"}
         else:
             return {"error": f"Acción desconocida: {action}"}
@@ -408,6 +390,54 @@ def manage_cortex(action: str, content: str = "", tags: list[str] = None, import
         logger.error(f"Error en manage_cortex: {e}")
         return {"success": False, "error": str(e)}
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONTROL CENTER TOOLS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def sync_system_status(action: str = "sync", export_name: str = None, mission_goal: str = None) -> dict:
+    """
+    Centro de Control y Observabilidad de Ultragent.
+    
+    Unifica la sincronización de estado, la gestión de objetivos de misión
+    y la exportación de bitácoras de sesión.
+    
+    Acciones:
+    - 'sync': Snapshot 360 de salud, misiones, tokens y eventos.
+    - 'set_goal': Define el objetivo actual (Mission Goal) del sistema.
+    - 'export': Genera un ZIP con toda la memoria y logs de la sesión.
+    """
+    logger.info(f"sync_system_status: action={action}")
+    try:
+        from hud import get_hud
+        hud = get_hud()
+        
+        if action == "sync":
+            result = await with_timeout(
+                asyncio.to_thread(hud.get_snapshot),
+                timeout=10.0,
+                operation_name="hud_snapshot"
+            )
+            if not result["success"]: return result
+            return result["result"]
+            
+        elif action == "set_goal":
+            if not mission_goal: return {"error": "Se requiere 'mission_goal'"}
+            result = await with_timeout(
+                asyncio.to_thread(hud.update_mission_goal, mission_goal),
+                timeout=5.0,
+                operation_name="set_goal"
+            )
+            if not result["success"]: return result
+            return {"success": True, "message": "Objetivo actualizado"}
+            
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
+    except Exception as e:
+        logger.error(f"Error en sync_system_status: {e}")
+        return {"success": False, "error": str(e)}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCOUT / EVOLUTION TOOLS
@@ -535,6 +565,53 @@ async def strategic_consultant(
                 return result
             return {"success": True, "results": [r.content for r in result["result"]]}
 
+        elif action == "autofix":
+            # ACCIÓN DE INGENIERÍA ACTIVA (Code Fixing)
+            if not local_file: return {"error": "Se requiere 'local_file'"}
+            p = Path(local_file)
+            if not p.exists(): return {"error": "Archivo no encontrado"}
+            
+            # Buscar benchmark si no se provee
+            benchmark_code = ""
+            if not query:
+                # Auto-detectar benchmark
+                gold_result = await with_timeout(
+                    scout.harvest_gold_standard(project_type=project_type, language=language),
+                    timeout=15.0, 
+                    operation_name="auto_benchmark"
+                )
+                if gold_result["success"] and gold_result["result"]:
+                    # Descargar código del benchmark (simulado o real)
+                    # Por simplicidad usamos placeholder o lógica de scout si tuviera download
+                    benchmark_code = "STANDARD_BENCHMARK_CODE" 
+            
+            local_code = p.read_text(encoding="utf-8")
+            
+            reports = await with_timeout(
+                evolution.full_audit_cycle(
+                    local_code=local_code,
+                    benchmark_code=benchmark_code,
+                    local_file=str(p),
+                    language=language
+                ),
+                timeout=120.0, # Ciclo largo
+                operation_name="autofix_cycle"
+            )
+            
+            if not reports["success"]: return reports # Timeout wrapper envelops result
+            
+            # El resultado de with_timeout es un dict wrapper si success, o el valor directo?
+            # with_timeout retorna {"success": True, "result": value}
+            actual_reports = reports["result"]
+            
+            final_verdict = actual_reports[-1].verdict.value if actual_reports else "UNKNOWN"
+            return {
+                "success": True, 
+                "iterations": len(actual_reports),
+                "final_verdict": final_verdict,
+                "reports": [r.scorecard.to_dict() for r in actual_reports]
+            }
+
         else:
             return {
                 "error": f"Acción desconocida: {action}", 
@@ -551,7 +628,7 @@ async def strategic_consultant(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def visualize_architecture(action: str = "render", output_filename: str = None) -> dict:
+async def visualize_architecture(action: str = "render", output_filename: str = None, project_root: str = "") -> dict:
     """
     Motor de Visualización Arquitectónica (Vision Hyper-V).
     
@@ -560,19 +637,61 @@ def visualize_architecture(action: str = "render", output_filename: str = None) 
     Acciones:
     - 'render': Genera el grafo PNG/HTML con dependencias y ciclos.
     - 'status': Retorna métricas de escaneo y configuración de visión.
+    
+    Args:
+        project_root: Optional path to target project directory.
     """
-    logger.info(f"visualize_architecture: action={action}")
+    logger.info(f"visualize_architecture: action={action}, project_root={project_root}")
     try:
         from vision import get_vision, REPORTS_DIR
-        vision = get_vision()
+        vision = get_vision(project_root) if project_root else get_vision()
+        
         if action == "render":
-            output_path = str(REPORTS_DIR / output_filename) if output_filename else None
-            report = vision.generate_dependency_graph(output_path=output_path)
-            return {"success": True, "graph_path": report.graph_path, "cycles": report.cycles}
+            def _render():
+                output_path = str(REPORTS_DIR / output_filename) if output_filename else None
+                return vision.generate_dependency_graph(output_path=output_path)
+            
+            result = await with_timeout(
+                asyncio.to_thread(_render),
+                timeout=30.0,
+                operation_name="architecture_render"
+            )
+            if not result["success"]: return result
+            report = result["result"]
+            return {
+                "success": True,
+                "nodes": len(report.nodes),
+                "edges": len(report.edges),
+                "cycles": len(report.cycles),
+                "graph_path": report.graph_path
+            }
+            
+        elif action == "mermaid":
+            mermaid_code = await vision.generate_mermaid_graph()
+            return {
+                "success": True,
+                "mermaid": mermaid_code,
+                "instructions": "Copy this into a mermaid editor or save as .mermaid"
+            }
+            
         elif action == "status":
-            return vision.get_status()
+            result = await with_timeout(
+                asyncio.to_thread(vision.get_status),
+                timeout=10.0,
+                operation_name="vision_status"
+            )
+            if not result["success"]: return result
+            return result["result"]
+            
         elif action == "cycles":
-            return vision.get_cycles_report()
+            result = await with_timeout(
+                asyncio.to_thread(vision.get_cycles_report),
+                timeout=15.0,
+                operation_name="vision_cycles"
+            )
+            if not result["success"]: return result
+            return result["result"]
+            
         else:
             return {"error": f"Acción desconocida: {action}"}
     except Exception as e:
@@ -651,12 +770,35 @@ async def run_agentic_task(
 async def heal_system_node(node_path: str, issue: str) -> dict:
     """
     Inicia el protocolo de auto-curación para un nodo específico.
-    Usa el sistema inmunológico (Mechanic + Cortex + NeuroArchitect).
+    Usa el sistema inmunológico (Impact Analysis + Mechanics).
     """
     logger.info(f"heal_system_node: {node_path}")
     try:
+        from neuro_architect import get_neuro_architect
+        impact = get_neuro_architect().analyze_impact(node_path)
+        
         from mechanic import get_mechanic
-        return await get_mechanic().heal_node(node_path, issue)
+        # El mecánico ahora recibe el impacto para priorizar riesgos
+        return await get_mechanic().heal_node(node_path, issue, impact_data=impact.to_dict())
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def get_error_guide(error_code: str) -> dict:
+    """
+    Motor de Consulta de Troubleshooting (Error Guide).
+    Busca soluciones conocidas en la memoria atómica y doc técnica.
+    """
+    logger.info(f"get_error_guide: {error_code}")
+    try:
+        from librarian import get_librarian
+        result = await with_timeout(
+            asyncio.to_thread(get_librarian().semantic_search, query=f"Solución para error {error_code}", node_type="memory", n_results=3),
+            timeout=10.0,
+            operation_name="error_guide_search"
+        )
+        if not result["success"]: return result
+        return {"success": True, "guides": result["result"]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -666,11 +808,12 @@ async def heal_system_node(node_path: str, issue: str) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def analyze_impact(
+async def analyze_impact(
     action: str,
     target_node: str = "",
     start_node: str = "",
-    end_node: str = ""
+    end_node: str = "",
+    project_root: str = ""
 ) -> dict:
     """
     Inteligencia Predictiva y Trazado de Flujos (Neuro-Architect).
@@ -682,24 +825,63 @@ def analyze_impact(
     - 'trace': Traza el flujo de datos exacto entre dos nodos.
     - 'brain_state': Retorna el estado actual del grafo neural (completo).
     - 'brain_min': Retorna el estado comprimido (óptimo para tokens).
+    
+    Args:
+        project_root: Optional path to target project directory.
     """
-    logger.info(f"analyze_impact: action={action}, target={target_node}")
+    logger.info(f"analyze_impact: action={action}, target={target_node}, project_root={project_root}")
     try:
         from neuro_architect import get_neuro_architect
-        neuro = get_neuro_architect()
+        neuro = get_neuro_architect(project_root) if project_root else get_neuro_architect()
         
         if action == "impact":
             if not target_node: return {"error": "Se requiere 'target_node'"}
-            return neuro.analyze_impact(target_node).to_dict()
+            result = await with_timeout(
+                asyncio.to_thread(neuro.analyze_impact, target_node), # Changed from predict_impact to analyze_impact based on original code
+                timeout=20.0,
+                operation_name="impact_analysis"
+            )
+            if not result["success"]: return result
+            impact = result["result"].to_dict() # Added .to_dict() as analyze_impact returns an object
+            # Enriquecer con memorias atómicas
+            from cortex import get_cortex
+            related = get_cortex().get_related_memories(target_node)
+            impact["linked_memories"] = [m.content for m in related[:5]]
+            return impact
+            
         elif action == "trace":
-            if not (start_node and end_node): return {"error": "Se requiere 'start_node' y 'end_node'"}
-            return neuro.trace_flow(start_node, end_node)
+            if not start_node or not end_node:
+                return {"error": "Se requieren 'start_node' y 'end_node'"}
+            result = await with_timeout(
+                asyncio.to_thread(neuro.trace_flow, start_node, end_node),
+                timeout=20.0,
+                operation_name="flow_tracing"
+            )
+            if not result["success"]: return result
+            return result["result"]
+            
         elif action == "bundle":
             # Retorna un paquete completo para el Agente (Impacto + Relaciones + Riesgos)
             if not target_node: return {"error": "Se requiere 'target_node'"}
-            impact = neuro.analyze_impact(target_node).to_dict()
-            flow = neuro.get_compressed_brain_state()
+            
+            impact_result = await with_timeout(
+                asyncio.to_thread(neuro.analyze_impact, target_node),
+                timeout=20.0,
+                operation_name="bundle_impact_analysis"
+            )
+            if not impact_result["success"]: return impact_result
+            impact = impact_result["result"].to_dict()
+
+            flow_result = await with_timeout(
+                asyncio.to_thread(neuro.get_compressed_brain_state),
+                timeout=10.0,
+                operation_name="bundle_graph_topology"
+            )
+            if not flow_result["success"]: return flow_result
+            flow = flow_result["result"]
+
             return {"success": True, "bundle_type": "ARCHITECT_CONTEXT", "impact_analysis": impact, "graph_topology": flow}
+            
         elif action == "brain_state":
             return neuro.get_brain_state()
         elif action == "brain_min":
@@ -710,6 +892,53 @@ def analyze_impact(
             return {"error": f"Acción desconocida: {action}"}
     except Exception as e:
         logger.error(f"Error en analyze_impact: {e}")
+        return {"error": str(e)}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INFRASTRUCTURE TOOLS (God Mode)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@mcp.tool()
+async def manage_infrastructure(action: str, target: str = "") -> dict:
+    """
+    Controlador Maestro de Infraestructura (Cloudflare/Vercel/Supabase).
+    
+    Acciones:
+    - 'purge_cache': Limpieza global de caché (CDN + Edge).
+    - 'sync_secrets': Sincroniza .env local con bóvedas remotas.
+    - 'status': Ver estado de conexiones.
+    """
+    # Importación lazy para evitar ciclos
+    from infrastructure import get_infrastructure
+    infra = get_infrastructure()
+    
+    try:
+        if action == "purge_cache":
+            result = await with_timeout(
+                asyncio.to_thread(infra.purge_global_cache, target),
+                timeout=30.0,
+                operation_name="infra_purge"
+            )
+            if not result["success"]: return result
+            return {"success": True, "details": result["result"]}
+            
+        elif action == "sync_secrets":
+            result = await with_timeout(
+                asyncio.to_thread(infra.sync_secrets, target),
+                timeout=30.0,
+                operation_name="infra_sync"
+            )
+            if not result["success"]: return result
+            return {"success": True, "details": result["result"]}
+            
+        elif action == "status":
+            return infra.get_status()
+            
+        else:
+            return {"error": f"Acción desconocida: {action}"}
+            
+    except Exception as e:
+        logger.error(f"Error en manage_infrastructure: {e}")
         return {"error": str(e)}
 
 # ═══════════════════════════════════════════════════════════════════════════════

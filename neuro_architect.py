@@ -57,6 +57,7 @@ class NeuronState:
     error_rate: float = 0.0
     active_variables: Dict[str, str] = field(default_factory=dict)
     logs: List[str] = field(default_factory=list)
+    memories: List[Dict[str, Any]] = field(default_factory=list) # Atomic Viz
     fix_attempts: int = 0  # To avoid infinite loops in auto-healing
 
     def to_dict(self) -> dict:
@@ -78,8 +79,15 @@ class ImpactPrediction:
     risk_score: float         # 0.0 a 100.0
     breaking_paths: List[str] # Rutas críticas afectadas
 
+    @property
+    def affected_nodes(self) -> List[str]:
+        """Unifica impactos directos e indirectos."""
+        return list(set(self.direct_impact + self.ripple_effect))
+
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        data["affected_nodes"] = self.affected_nodes
+        return data
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEURO ARCHITECT
@@ -91,15 +99,16 @@ class NeuroArchitect:
     Mantiene el grafo vivo y responde consultas de otros agentes.
     """
 
-    def __init__(self):
+    def __init__(self, project_root: Optional[str] = None):
         self._lock = Lock()
         self._graph: nx.DiGraph = nx.DiGraph()
         self._states: Dict[str, NeuronState] = {}
-        self._vision = get_vision()
+        self._project_root = project_root
+        self._vision = get_vision(project_root)
         
         # Inicialización
         self._initialize_cortex()
-        logger.info("NeuroArchitect (Hyper-V) online.")
+        logger.info(f"NeuroArchitect (Hyper-V) online. Project: {project_root or 'default'}")
 
     def _initialize_cortex(self):
         """Inicializa el grafo base usando Vision y enriquece con datos."""
@@ -373,6 +382,17 @@ class NeuroArchitect:
         nodes_data = []
         for n, attrs in self._graph.nodes(data=True):
             state = self._states.get(n, NeuronState())
+            
+            # Atomic Viz: Recuperar memorias vinculadas al nodo desde el Cortex
+            try:
+                from cortex import get_cortex
+                related = get_cortex().get_related_memories(n)
+                state.memories = [
+                    {"content": m.content, "tags": m.tags, "importance": m.importance} for m in related
+                ]
+            except Exception as e:
+                logger.warning(f"Error vinculando memorias a {n}: {e}")
+
             nodes_data.append({
                 "id": n,
                 "type": attrs.get("node_type", "unknown"),
@@ -654,18 +674,42 @@ class NeuroArchitect:
                     .join('');
             }}
             
+            let memsHtml = '';
+            if (node.state && node.state.memories && node.state.memories.length > 0) {{
+                memsHtml = node.state.memories
+                    .map(m => `
+                        <div style="background:#1a1a1a; padding:8px; border-left:2px solid #64ffda; margin-bottom:5px; font-size:11px;">
+                            <div style="color:#888; font-size:9px; margin-bottom:2px;">IMPORTANCE: ${{m.importance}}</div>
+                            ${{m.content}}
+                        </div>
+                    `).join('');
+            }} else {{
+                memsHtml = '<em style="color:#555">No related memory atoms found.</em>';
+            }}
+            
             panel.innerHTML = `
-                <h3 style="color:#fff; border-bottom:1px solid #333; padding-bottom:10px;">${{node.id}}</h3>
+                <h3 style="color:#64ffda; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px;">
+                    <span style="color:#888; font-size:0.8em;">NODE:</span> ${{node.id}}
+                </h3>
+                
                 <div style="margin-bottom: 20px;">
-                    <h4>Active Variables</h4>
-                    <div style="font-family: monospace; font-size: 11px; background: #111; padding: 10px;">
+                    <h4 style="color:#888; font-size:10px; text-transform:uppercase; letter-spacing:1px;">Atomic Memories (Cortex)</h4>
+                    <div style="margin-top:10px;">
+                        ${{memsHtml}}
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color:#888; font-size:10px; text-transform:uppercase; letter-spacing:1px;">Active Variables</h4>
+                    <div style="font-family: monospace; font-size: 11px; background: #111; padding: 10px; margin-top:5px; border-radius:4px;">
                         ${{varsHtml || '<em style="color:#555">None</em>'}}
                     </div>
                 </div>
                 
                 <div>
-                    <h4>Impact Prediction</h4>
-                    <button style="width:100%" onclick="alert('Triggering Impact Analysis via MCP...')">RUN SIMULATION</button>
+                    <h4 style="color:#888; font-size:10px; text-transform:uppercase; letter-spacing:1px;">Impact Prediction</h4>
+                    <button style="width:100%; padding:10px; margin-top:10px; background:#64ffda; color:#0a192f; border:none; font-weight:bold; cursor:pointer;" 
+                            onclick="alert('Triggering Impact Analysis via MCP...')">RUN SIMULATION</button>
                     <div style="font-size: 10px; color: #888; margin-top: 5px;">
                         Use Ultragent CLI to run <code>analyze_impact('${{node.id}}')</code>
                     </div>
@@ -689,12 +733,21 @@ class NeuroArchitect:
 
 _neuro_instance: Optional[NeuroArchitect] = None
 _neuro_lock = Lock()
+_current_neuro_project: Optional[str] = None
 
-def get_neuro_architect() -> NeuroArchitect:
-    global _neuro_instance
+def get_neuro_architect(project_root: Optional[str] = None) -> NeuroArchitect:
+    """
+    Obtiene la instancia singleton del NeuroArchitect.
+    
+    Args:
+        project_root: Optional path to target project. If provided and different
+                      from current, a new NeuroArchitect instance is created.
+    """
+    global _neuro_instance, _current_neuro_project
     with _neuro_lock:
-        if _neuro_instance is None:
-            _neuro_instance = NeuroArchitect()
+        if _neuro_instance is None or _current_neuro_project != project_root:
+            _neuro_instance = NeuroArchitect(project_root=project_root)
+            _current_neuro_project = project_root
         return _neuro_instance
 
 if __name__ == "__main__":

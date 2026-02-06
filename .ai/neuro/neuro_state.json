@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-05T11:36:52.517925",
+  "timestamp": "2026-02-06T02:56:54.350308",
   "nodes": [
     {
       "id": "cortex",
@@ -13,7 +13,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 6,
+        "in_degree": 7,
         "out_degree": 11
       }
     },
@@ -45,7 +45,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 14,
+        "in_degree": 15,
         "out_degree": 0
       }
     },
@@ -61,7 +61,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 31,
+        "in_degree": 30,
         "out_degree": 0
       }
     },
@@ -77,7 +77,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 33,
+        "in_degree": 32,
         "out_degree": 0
       }
     },
@@ -189,7 +189,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 12,
+        "in_degree": 13,
         "out_degree": 18
       }
     },
@@ -197,7 +197,7 @@
       "id": "evolution",
       "type": "file",
       "state": {
-        "last_active": "2026-02-05T11:36:52.517518",
+        "last_active": "2026-02-06T02:56:54.314491",
         "activation_level": 0.0,
         "error_rate": 0.0,
         "active_variables": {
@@ -223,7 +223,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 27,
+        "in_degree": 28,
         "out_degree": 0
       }
     },
@@ -367,7 +367,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 10,
+        "in_degree": 8,
         "out_degree": 0
       }
     },
@@ -383,7 +383,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 3,
+        "in_degree": 2,
         "out_degree": 19
       }
     },
@@ -400,7 +400,7 @@
       },
       "metrics": {
         "in_degree": 9,
-        "out_degree": 14
+        "out_degree": 15
       }
     },
     {
@@ -431,8 +431,8 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 3,
-        "out_degree": 21
+        "in_degree": 4,
+        "out_degree": 19
       }
     },
     {
@@ -447,7 +447,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 4,
+        "in_degree": 3,
         "out_degree": 13
       }
     },
@@ -463,8 +463,8 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 7,
-        "out_degree": 11
+        "in_degree": 6,
+        "out_degree": 12
       }
     },
     {
@@ -671,7 +671,7 @@
         "fix_attempts": 0
       },
       "metrics": {
-        "in_degree": 2,
+        "in_degree": 1,
         "out_degree": 0
       }
     },
@@ -693,6 +693,22 @@
     },
     {
       "id": "fastmcp",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "hud",
       "type": "module",
       "state": {
         "last_active": null,
@@ -996,6 +1012,22 @@
       }
     },
     {
+      "id": "verify_multi_project",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 5
+      }
+    },
+    {
       "id": "verify_native",
       "type": "file",
       "state": {
@@ -1009,6 +1041,22 @@
       "metrics": {
         "in_degree": 0,
         "out_degree": 6
+      }
+    },
+    {
+      "id": "verify_placeholders",
+      "type": "file",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 3
       }
     },
     {
@@ -1172,38 +1220,6 @@
       }
     },
     {
-      "id": "debug_oh_agents",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": [],
-        "fix_attempts": 0
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 3
-      }
-    },
-    {
-      "id": "openhands",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": [],
-        "fix_attempts": 0
-      },
-      "metrics": {
-        "in_degree": 2,
-        "out_degree": 0
-      }
-    },
-    {
       "id": "debug_scout",
       "type": "file",
       "state": {
@@ -1249,38 +1265,6 @@
       "metrics": {
         "in_degree": 0,
         "out_degree": 8
-      }
-    },
-    {
-      "id": "deep_inspect_oh",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": [],
-        "fix_attempts": 0
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 3
-      }
-    },
-    {
-      "id": "inspect",
-      "type": "module",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": [],
-        "fix_attempts": 0
-      },
-      "metrics": {
-        "in_degree": 2,
-        "out_degree": 0
       }
     },
     {
@@ -1428,6 +1412,22 @@
       }
     },
     {
+      "id": "inspect",
+      "type": "module",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 1,
+        "out_degree": 0
+      }
+    },
+    {
       "id": "verify_debt_hunter",
       "type": "file",
       "state": {
@@ -1473,22 +1473,6 @@
       "metrics": {
         "in_degree": 0,
         "out_degree": 5
-      }
-    },
-    {
-      "id": "verify_openhands_integration",
-      "type": "file",
-      "state": {
-        "last_active": null,
-        "activation_level": 0.0,
-        "error_rate": 0.0,
-        "active_variables": {},
-        "logs": [],
-        "fix_attempts": 0
-      },
-      "metrics": {
-        "in_degree": 0,
-        "out_degree": 7
       }
     },
     {
@@ -1621,6 +1605,22 @@
     },
     {
       "id": "Memory #7",
+      "type": "memory",
+      "state": {
+        "last_active": null,
+        "activation_level": 0.0,
+        "error_rate": 0.0,
+        "active_variables": {},
+        "logs": [],
+        "fix_attempts": 0
+      },
+      "metrics": {
+        "in_degree": 0,
+        "out_degree": 0
+      }
+    },
+    {
+      "id": "Memory #8",
       "type": "memory",
       "state": {
         "last_active": null,
@@ -2208,6 +2208,11 @@
       "type": "import"
     },
     {
+      "source": "neuro_architect",
+      "target": "cortex",
+      "type": "import"
+    },
+    {
       "source": "mcp_server",
       "target": "asyncio",
       "type": "import"
@@ -2259,17 +2264,17 @@
     },
     {
       "source": "mcp_server",
-      "target": "hud_manager",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
       "target": "librarian",
       "type": "import"
     },
     {
       "source": "mcp_server",
       "target": "cortex",
+      "type": "import"
+    },
+    {
+      "source": "mcp_server",
+      "target": "hud",
       "type": "import"
     },
     {
@@ -2295,16 +2300,6 @@
     {
       "source": "mcp_server",
       "target": "neuro_architect",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
-      "target": "sentinel",
-      "type": "import"
-    },
-    {
-      "source": "mcp_server",
-      "target": "docker",
       "type": "import"
     },
     {
@@ -2425,6 +2420,11 @@
     {
       "source": "mechanic",
       "target": "google",
+      "type": "import"
+    },
+    {
+      "source": "mechanic",
+      "target": "asyncio",
       "type": "import"
     },
     {
@@ -2798,6 +2798,31 @@
       "type": "import"
     },
     {
+      "source": "verify_multi_project",
+      "target": "asyncio",
+      "type": "import"
+    },
+    {
+      "source": "verify_multi_project",
+      "target": "os",
+      "type": "import"
+    },
+    {
+      "source": "verify_multi_project",
+      "target": "pathlib",
+      "type": "import"
+    },
+    {
+      "source": "verify_multi_project",
+      "target": "sys",
+      "type": "import"
+    },
+    {
+      "source": "verify_multi_project",
+      "target": "mcp_server",
+      "type": "import"
+    },
+    {
       "source": "verify_native",
       "target": "logging",
       "type": "import"
@@ -2825,6 +2850,21 @@
     {
       "source": "verify_native",
       "target": "mechanic",
+      "type": "import"
+    },
+    {
+      "source": "verify_placeholders",
+      "target": "logging",
+      "type": "import"
+    },
+    {
+      "source": "verify_placeholders",
+      "target": "json",
+      "type": "import"
+    },
+    {
+      "source": "verify_placeholders",
+      "target": "librarian",
       "type": "import"
     },
     {
@@ -3088,21 +3128,6 @@
       "type": "import"
     },
     {
-      "source": "debug_oh_agents",
-      "target": "logging",
-      "type": "import"
-    },
-    {
-      "source": "debug_oh_agents",
-      "target": "openhands",
-      "type": "import"
-    },
-    {
-      "source": "debug_oh_agents",
-      "target": "traceback",
-      "type": "import"
-    },
-    {
       "source": "debug_scout",
       "target": "asyncio",
       "type": "import"
@@ -3190,21 +3215,6 @@
     {
       "source": "debug_vision_v2",
       "target": "cortex",
-      "type": "import"
-    },
-    {
-      "source": "deep_inspect_oh",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "deep_inspect_oh",
-      "target": "inspect",
-      "type": "import"
-    },
-    {
-      "source": "deep_inspect_oh",
-      "target": "openhands",
       "type": "import"
     },
     {
@@ -3428,41 +3438,6 @@
       "type": "import"
     },
     {
-      "source": "verify_openhands_integration",
-      "target": "asyncio",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "logging",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "os",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "pathlib",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "sys",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "mechanic",
-      "type": "import"
-    },
-    {
-      "source": "verify_openhands_integration",
-      "target": "traceback",
-      "type": "import"
-    },
-    {
       "source": "verify_optimization",
       "target": "json",
       "type": "import"
@@ -3534,5 +3509,5 @@
     }
   ],
   "neuron_count": 102,
-  "synapse_count": 379
+  "synapse_count": 374
 }

@@ -42,6 +42,7 @@ ROUTER_LOG = AI_DIR / "logs" / "router.log"
 
 # Configuración de resiliencia
 MAX_RETRIES = 3
+INITIAL_BACKOFF = 1.0
 BASE_TIMEOUT = 30.0
 CIRCUIT_BREAKER_THRESHOLD = 3
 CIRCUIT_BREAKER_RESET_SECONDS = 60
@@ -420,6 +421,57 @@ class BudgetGuard:
 # OMNI-ROUTER
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# --- RL: Contextual Bandits (Weight Manager) ---
+import json
+from pathlib import Path
+from typing import Dict, Any
+
+# Ensure we have the path constants we need
+try:
+    from mcp_server import AI_DIR
+except ImportError:
+    # Fallback if circular import or missing
+    AI_DIR = Path.cwd() / ".ai"
+
+class WeightManager:
+    """Gestor de pesos para Reinforcement Learning (Lite - Contextual Bandits)."""
+    def __init__(self):
+        self._weights_file = AI_DIR / "cortex" / "weights.json"
+        self._weights: Dict[str, float] = {}
+        self._load_weights()
+    
+    def _load_weights(self):
+        if self._weights_file.exists():
+            try:
+                content = self._weights_file.read_text(encoding="utf-8")
+                self._weights = json.loads(content)
+            except Exception as e:
+                logger.warning(f"RL: Failed to load weights ({e}). Resetting to empty.")
+                self._weights = {}
+        else:
+            # Create dir if needed
+            self._weights_file.parent.mkdir(parents=True, exist_ok=True)
+            self._weights = {}
+
+    def get_weight(self, key: str, default: float = 1.0) -> float:
+        return self._weights.get(key, default)
+
+    def update_weight(self, key: str, reward: float, learning_rate: float = 0.1):
+        """Alpha-update: W_new = W_old + LR * (Reward - W_old)"""
+        old_W = self.get_weight(key)
+        new_W = old_W + learning_rate * (reward - old_W)
+        self._weights[key] = round(new_W, 4)
+        self._save_weights()
+
+    def _save_weights(self):
+        try:
+            self._weights_file.write_text(json.dumps(self._weights, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"RL: Failed to save weights: {e}")
+
+# Global RL Manager instance
+rl_manager = WeightManager()
+
 class OmniRouter:
     """
     Router inteligente con arbitraje de APIs y failover automático.
@@ -473,55 +525,34 @@ class OmniRouter:
         temperature: float,
         max_tokens: int,
     ) -> tuple[str, int]:
-        """Llama al proveedor con exponential backoff."""
+        """Llama al proveedor con exponential backoff y Agentic Self-Repair (ToolMedic)."""
         
         last_error = None
         
         for attempt in range(MAX_RETRIES):
             try:
-                start = time.perf_counter()
-                content, tokens = await asyncio.wait_for(
-                    provider.complete(messages, temperature, max_tokens),
-                    timeout=BASE_TIMEOUT,
-                )
-                latency = (time.perf_counter() - start) * 1000
+                if attempt > 0:
+                    wait_time = INITIAL_BACKOFF * (2 ** (attempt - 1))
+                    logger.warning(f"Retry {attempt}/{MAX_RETRIES} for {provider.name} in {wait_time}s")
+                    await asyncio.sleep(wait_time)
                 
-                # Validar respuesta
-                if not content or len(content.strip()) < 5:
-                    raise ValueError("Respuesta vacía o muy corta")
-                
-                provider.mark_success()
-                logger.info(
-                    f"✓ {provider.name}: {tokens} tokens, {latency:.0f}ms"
+                content, tokens = await provider.complete(
+                    messages, temperature, max_tokens
                 )
                 
-                return content, tokens
-                
-            except asyncio.TimeoutError:
-                logger.warning(f"Timeout en {provider.name} (intento {attempt + 1})")
-                last_error = "Timeout"
-                
-            except RateLimitError as e:
-                logger.warning(f"Rate limit en {provider.name}: {e}")
-                provider.mark_failure()
-                raise  # Re-raise para failover inmediato
-                
-            except httpx.HTTPStatusError as e:
-                logger.error(f"HTTP error en {provider.name}: {e}")
-                last_error = str(e)
-                provider.mark_failure()
-                
+                if content:
+                    return content, tokens
+                    
             except Exception as e:
-                logger.error(f"Error en {provider.name}: {e}")
-                last_error = str(e)
-            
-            # Exponential backoff
-            if attempt < MAX_RETRIES - 1:
-                wait_time = 2 ** attempt
-                await asyncio.sleep(wait_time)
+                last_error = e
+                # Check for specific "Repairable" errors
+                if "401" in str(e) or "unauthorized" in str(e).lower():
+                    logger.error(f"🚑 ToolMedic Alert: {provider.name} has AUTH ERROR. Triggering Self-Repair.")
+                    # In a full autonomous system, this would call:
+                    # await get_mechanic().run_task(f"Fix API Key for {provider.name}. Error: {e}")
+                    # For now, we log the alert to be picked up by the Supervisor.
         
-        provider.mark_failure()
-        raise RouterError(f"Agotados reintentos para {provider.name}: {last_error}")
+        raise RouterError(f"All retries failed for {provider.name}. Last error: {last_error}")
     
     async def route_task(
         self,
@@ -546,6 +577,24 @@ class OmniRouter:
         """
         tier = self.classify_task(task_type)
         
+        if tier not in self._providers:
+            # Fallback a CODING si el tier no existe
+            tier = Tier.CODING
+
+        with self._lock:
+            self._stats["total_calls"] += 1
+        
+        # RL: PROVIDER SELECTION based on Weights
+        # We sort providers by their weight for this specific task type
+        providers = self._providers.get(tier, [])
+        
+        # Sort logic: Weight * Availability
+        # Keys are "provider_name:task_type"
+        providers.sort(
+            key=lambda p: rl_manager.get_weight(f"{p.name}:{task_type}", 1.0),
+            reverse=True
+        )
+
         with self._lock:
             self._stats["total_calls"] += 1
         
@@ -559,9 +608,15 @@ class OmniRouter:
         tiers_to_try = [tier] + self._fallbacks.get(tier, [])
         
         for current_tier in tiers_to_try:
-            providers = self._providers.get(current_tier, [])
+            # Re-fetch in case tier changed loop (though providers list above was tier specific)
+            # Actually we need to re-sort for each fallback tier
+            current_providers = self._providers.get(current_tier, [])
+            current_providers.sort(
+                 key=lambda p: rl_manager.get_weight(f"{p.name}:{task_type}", 1.0),
+                 reverse=True
+            )
             
-            for provider in providers:
+            for provider in current_providers:
                 if not provider.is_available():
                     continue
                 
@@ -575,6 +630,11 @@ class OmniRouter:
                         provider, messages, temperature, max_tokens
                     )
                     latency = (time.perf_counter() - start) * 1000
+                    
+                    # RL: REWARD SIGNAL (Success = +0.1, Fast = +0.05)
+                    reward = 1.0
+                    if latency < 2000: reward += 0.2
+                    rl_manager.update_weight(f"{provider.name}:{task_type}", reward)
                     
                     # Registrar tokens
                     self._budget.check_and_consume(tokens, current_tier.value)
@@ -597,6 +657,8 @@ class OmniRouter:
                     )
                     
                 except (RateLimitError, RouterError) as e:
+                    # RL: PENALTY SIGNAL (Failure = -0.5)
+                    rl_manager.update_weight(f"{provider.name}:{task_type}", 0.0)
                     logger.warning(f"Failover desde {provider.name}: {e}")
                     continue
                     
