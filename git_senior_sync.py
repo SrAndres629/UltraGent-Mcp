@@ -42,7 +42,7 @@ async def generate_commit_message(diff: str) -> str:
         3. Responde SOLAMENTE con el mensaje de commit.
         """
         
-        result = await router.route_request(
+        result = await router.route_task(
             prompt=prompt,
             task_type="coding",
             system_prompt="Eres un experto en Git y estándares de ingeniería."

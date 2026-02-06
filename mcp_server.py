@@ -22,7 +22,7 @@ import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, List, Dict
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -730,6 +730,63 @@ async def test_code_securely(
         logger.error(f"Error en test_code_securely: {e}")
         return {"success": False, "error": str(e)}
 
+
+@mcp.tool()
+async def issue_command(
+    command: str,
+    mission_id: str = None
+) -> dict:
+    """
+    S.O.T.A COMMAND: Dar una orden de alto nivel al Enjambre Soberano.
+    Activa al COMMANDER para orquestar la misión a través de múltiples agentes.
+    
+    Args:
+        command: La orden técnica o estratégica.
+        mission_id: ID opcional para continuar una misión existente.
+    """
+    logger.info(f"issue_command: '{command[:50]}'")
+    try:
+        from mechanic import get_mechanic
+        mechanic = get_mechanic()
+        
+        if mechanic is None:
+             return {"success": False, "error": "Mechanic offline"}
+
+        # Forzamos la ejecución vía run_swarm_mission
+        result = await mechanic.run_swarm_mission(command)
+        return {"success": True, "result": result, "mission_id": mission_id}
+        
+    except Exception as e:
+        logger.error(f"Command Error: {e}")
+        return {"success": False, "error": str(e)}
+
+@mcp.tool()
+async def mission_status(
+    mission_id: str = None
+) -> dict:
+    """
+    S.O.T.A MONITOR: Ver el estado global de las misiones del enjambre.
+    Lee la Verdad (Blackboard) persistente.
+    """
+    try:
+        from agent_manager import get_agent_manager
+        manager = get_agent_manager()
+        messages = manager.get_messages(task_id=mission_id)
+        
+        return {
+            "success": True,
+            "mission_id": mission_id,
+            "history": [
+                {
+                    "from": m.sender_role.upper(),
+                    "to": (m.target_role.upper() if m.target_role else "ALL"),
+                    "content": m.content[:200] + ("..." if len(m.content) > 200 else ""),
+                    "time": m.timestamp
+                } for m in messages
+            ]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @mcp.tool()
 async def run_agentic_task(

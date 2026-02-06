@@ -1,0 +1,47 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent
+configfile: pyproject.toml
+plugins: anyio-4.9.0, libtmux-0.53.0, asyncio-1.3.0, html-4.2.0, metadata-3.1.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 10 items
+
+tests\test_librarian.py F.......FF                                       [100%]
+
+================================== FAILURES ===================================
+________________________ test_skeleton_extractor_init _________________________
+
+skeleton_extractor = <librarian.SkeletonExtractor object at 0x0000020D5B0C6A50>
+
+    def test_skeleton_extractor_init(skeleton_extractor):
+        assert skeleton_extractor._parsers == {}
+>       assert isinstance(skeleton_extractor._lock, type(Lock()))
+                                                         ^^^^
+E       NameError: name 'Lock' is not defined
+
+tests\test_librarian.py:11: NameError
+___________________ TestUnsupportedLanguageError.test_init ____________________
+
+self = <test_librarian.TestUnsupportedLanguageError object at 0x0000020D5B092AD0>
+
+    def test_init(self):
+>       error = UnsupportedLanguageError('Test language')
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+E       NameError: name 'UnsupportedLanguageError' is not defined
+
+tests\test_librarian.py:122: NameError
+_________________________ TestParsingError.test_init __________________________
+
+self = <test_librarian.TestParsingError object at 0x0000020D5B092C10>
+
+    def test_init(self):
+>       error = ParsingError('Test error')
+                ^^^^^^^^^^^^
+E       NameError: name 'ParsingError' is not defined
+
+tests\test_librarian.py:127: NameError
+=========================== short test summary info ===========================
+FAILED tests/test_librarian.py::test_skeleton_extractor_init - NameError: nam...
+FAILED tests/test_librarian.py::TestUnsupportedLanguageError::test_init - Nam...
+FAILED tests/test_librarian.py::TestParsingError::test_init - NameError: name...
+========================= 3 failed, 7 passed in 2.75s =========================

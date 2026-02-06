@@ -333,6 +333,109 @@ class NativeAgent:
         }
 
     async def run_task(self, task: str, max_steps: int = 10) -> str:
+        """Alias para mantener compatibilidad, ahora puede usar enjambre si se detecta complejidad."""
+        if "swarm" in task.lower() or "equipo" in task.lower():
+            return await self.run_swarm_mission(task)
+        return await self._run_simple_task(task, max_steps)
+
+    async def run_swarm_mission(self, task: str, roles: List[str] = None) -> str:
+        """
+        [ADVANCED] SOVEREIGN COMMAND CENTER (C2).
+        Orquesta un enjambre persistente. Los agentes escriben en la Verdad (JSON).
+        Coordina misiones complejas cruzando contextos de Antigravity.
+        """
+        from agent_manager import get_agent_manager, AgentRole
+        manager = get_agent_manager()
+        
+        # Generar ID único para la misión si no existe
+        mission_id = f"MSN-{int(time.time())}"
+        roles = roles or ["researcher", "coder", "auditor", "qa"]
+        
+        logger.info(f"🛰️ Sovereign Mission Dispatched: {mission_id}")
+        manager.post_message(
+            sender=AgentRole.COMMANDER,
+            content=f"Iniciando misión soberana: {task}",
+            task_id=mission_id,
+            metadata={"roles": roles, "status": "planning"}
+        )
+
+        # 1. ARCHITECTURAL PLANNING (Zero-Humo)
+        # El Commander define la 'Matriz de Ejecución'
+        orchestrator_prompt = f"""
+        ACT AS: SOVEREIGN COMMANDER (Top 0.1% Engineer).
+        MISSION ID: {mission_id}
+        MAIN OBJECTIVE: {task}
+        TEAM ASSETS: {roles}
+        
+        TASK: Generate a persistent execution DAG.
+        Constraints:
+        - No fluff. No boilerplate responses.
+        - Define sequential dependencies (Researcher -> Coder).
+        - Each step must have a clear 'Verification Goal'.
+        
+        RETURN JSON: {{"dag": [ {{"id": "T1", "role": "role", "goal": "...", "depends_on": []}}, ... ]}}
+        """
+        
+        plan_raw = await self._call_llm(orchestrator_prompt, "strategic")
+        try:
+            plan_data = json.loads(plan_raw[plan_raw.find("{"):plan_raw.rfind("}")+1])
+            dag = plan_data.get("dag", [])
+        except Exception as e:
+            logger.error(f"Command Failure (Planning): {e}")
+            return f"Mission {mission_id} failed in planning phase."
+
+        # 2. ENJAMBRE EXECUTION LOOP (Persistent)
+        final_summary = []
+        for step in dag:
+            role_name = step["role"]
+            goal = step["goal"]
+            role_enum = AgentRole(role_name.lower())
+            
+            logger.info(f"▶️ Executing Dag Step {step['id']} ({role_name.upper()}): {goal}")
+            
+            # Recuperar Inteligencia Cruzada (The Real Power)
+            intelligence = manager.get_messages(task_id=mission_id)
+            context = "\n".join([f"[{m.sender_role.upper()}]: {m.content[:300]}" for m in intelligence])
+            
+            # Ejecutar al especialista con contexto de enjambre
+            agent_prompt = f"""
+            ROLE: {manager.get_role_description(role_enum)}
+            MISSION ID: {mission_id}
+            STEP GOAL: {goal}
+            SWARM CONTEXT:
+            {context}
+            
+            EXECUTION: Perform the task and return the resulting technical data or code.
+            """
+            
+            result = await self._run_simple_task(f"Acting as {role_name} for mission {mission_id}: {goal}\nPrompt: {agent_prompt}", max_steps=5)
+            
+            # Publicar el reporte técnico en el Blackboard Persistente
+            manager.post_message(
+                sender=role_enum,
+                content=result,
+                task_id=mission_id,
+                metadata={"step_id": step["id"], "status": "done"}
+            )
+            final_summary.append(f"✅ {role_name.upper()}: {goal[:50]}...")
+
+        manager.post_message(
+            sender=AgentRole.COMMANDER,
+            content="Misión completada. Enjambre en standby.",
+            task_id=mission_id,
+            metadata={"status": "completed"}
+        )
+
+        return f"Misión {mission_id} Completada.\n" + "\n".join(final_summary)
+
+    async def _call_llm(self, prompt: str, tier: str = "coding") -> str:
+        """Helper para llamar al router o proveedores internos."""
+        from router import get_router
+        resp = await get_router().route_task(task_type=tier, payload=prompt)
+        return resp.content
+
+    async def _run_simple_task(self, task: str, max_steps: int = 10) -> str:
+        # Lógica original de run_task movida aquí para reutilización
         logger.info(f"🚀 Iniciando Misión (Senior Contextual Loop): {task}")
         
         # 1. Recuperar contexto de memoria (Active Recall)
@@ -554,7 +657,7 @@ class NativeAgent:
         # 2. Guardar aprendizaje (Active Learning)
         try:
             get_cortex().add_memory(
-                content=f"Task: {task} | Plan: {strategic_plan[:50]}... | Result: {final_result[:100]}...",
+                content=f"Task: {task} | Advice: {strategic_advice[:50]}... | Result: {final_result[:100]}...",
                 tags=["mechanic_log", "senior_protocol", "success" if "Done" in final_result else "failure"],
                 importance=0.7
             )

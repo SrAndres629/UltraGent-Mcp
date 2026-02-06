@@ -10,7 +10,6 @@ from typing import Any, Optional
 from unittest.mock import patch, Mock
 import pytest
 from pytest import fixture
-from pytest_asyncio import fixture as async_fixture
 
 from scout import (
     StackProfile,
@@ -66,9 +65,14 @@ def search_result():
     return SearchResult(
         title="Test Title",
         url="https://test.url.com",
+        snippet="Snippet",
+        source_type="SNIPPET",
+        date="2024-01-01"
     )
 
-def test_stack_profile_from_file():
+@patch("scout.Path.exists")
+def test_stack_profile_from_file(mock_exists):
+    mock_exists.return_value = True
     with patch("scout.json.loads") as mock_json_loads:
         mock_json_loads.return_value = {
             "project_name": "Test Project",
@@ -87,6 +91,7 @@ def test_repository_health_health_score(repository_health):
     assert repository_health.health_score <= 100
 
 def test_repository_health_is_gold_standard(repository_health):
+    # This test uses datetime.now() internally in is_gold_standard
     assert repository_health.is_gold_standard() == (repository_health.stars >= GOLD_STANDARD_THRESHOLDS["min_stars"] and
                                                     repository_health.forks >= GOLD_STANDARD_THRESHOLDS["min_forks"] and
                                                     (datetime.now() - repository_health.last_updated).days <= GOLD_STANDARD_THRESHOLDS["max_days_since_update"] and
@@ -110,11 +115,14 @@ def test_search_result():
     result = SearchResult(
         title="Test Title",
         url="https://test.url.com",
+        snippet="Snippet",
+        source_type="SNIPPET",
+        date="2024-01-01"
     )
     assert result.title == "Test Title"
     assert result.url == "https://test.url.com"
 
-@async_fixture
+@fixture
 async def async_scout_result():
     return ScoutResult(
         success=True,
@@ -124,11 +132,14 @@ async def async_scout_result():
         cached=False,
     )
 
-@async_fixture
+@fixture
 async def async_search_result():
     return SearchResult(
         title="Test Title",
         url="https://test.url.com",
+        snippet="Snippet",
+        source_type="SNIPPET",
+        date="2024-01-01"
     )
 
 @patch("scout.httpx.get")
@@ -143,7 +154,13 @@ async def test_async_scout_result(mock_get, async_scout_result):
 
 @patch("scout.httpx.get")
 async def test_async_search_result(mock_get, async_search_result):
-    mock_get.return_value = Mock(status_code=200, json=lambda: {"title": "Test Title", "url": "https://test.url.com"})
+    mock_get.return_value = Mock(status_code=200, json=lambda: {
+        "title": "Test Title", 
+        "url": "https://test.url.com",
+        "snippet": "Snippet",
+        "source_type": "SNIPPET",
+        "date": "2024-01-01"
+    })
     result = async_search_result
     assert result.title == "Test Title"
     assert result.url == "https://test.url.com"
@@ -155,10 +172,13 @@ def test_stack_profile_invalid_file():
         assert profile.project_name == "Default"
 
 def test_repository_health_invalid_input(repository_health):
-    with patch("scout.datetime.now") as mock_now:
-        mock_now.return_value = datetime(2022, 1, 1)
+    with patch("scout.datetime") as mock_datetime:
+        mock_datetime.now.return_value = datetime(2022, 1, 1)
         repository_health.last_updated = datetime(2021, 1, 1)
-        assert repository_health.is_gold_standard()
+        # We also need to mock datetime.now() in the global scope for is_gold_standard comparison in test
+        with patch("datetime.datetime") as mock_global_dt:
+             mock_global_dt.now.return_value = datetime(2022, 1, 1)
+             assert repository_health.is_gold_standard()
 
 def test_scout_result_invalid_input():
     result = ScoutResult(
@@ -178,6 +198,9 @@ def test_search_result_invalid_input():
     result = SearchResult(
         title=None,
         url=None,
+        snippet="None",
+        source_type="SNIPPET",
+        date="None"
     )
     assert result.title is None
     assert result.url is None

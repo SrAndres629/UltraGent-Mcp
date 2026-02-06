@@ -1,0 +1,216 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.1, pytest-8.4.2, pluggy-1.6.0
+rootdir: C:\Users\acord\OneDrive\Desktop\Biblioteca MCP\Ultragent
+configfile: pyproject.toml
+plugins: anyio-4.9.0, libtmux-0.53.0, asyncio-1.3.0, html-4.2.0, metadata-3.1.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 9 items
+
+tests\test_git_senior_sync.py EEE....EF                                  [100%]
+
+=================================== ERRORS ====================================
+__________ ERROR at setup of test_generate_commit_message_empty_diff __________
+
+    @pytest.fixture
+    def mock_router():
+>       with patch('git_senior_sync.get_router') as mock_get_router:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_git_senior_sync.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1495: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001B6286DCC20>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'git_senior_sync' from 'C:\\Users\\acord\\OneDrive\\Desktop\\Biblioteca MCP\\Ultragent\\git_senior_sync.py'> does not have the attribute 'get_router'
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1465: AttributeError
+_______________ ERROR at setup of test_generate_commit_message ________________
+
+    @pytest.fixture
+    def mock_router():
+>       with patch('git_senior_sync.get_router') as mock_get_router:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_git_senior_sync.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1495: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001B6286CA0D0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'git_senior_sync' from 'C:\\Users\\acord\\OneDrive\\Desktop\\Biblioteca MCP\\Ultragent\\git_senior_sync.py'> does not have the attribute 'get_router'
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1465: AttributeError
+__________ ERROR at setup of test_generate_commit_message_exception ___________
+
+    @pytest.fixture
+    def mock_router():
+>       with patch('git_senior_sync.get_router') as mock_get_router:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_git_senior_sync.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1495: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001B6286CAC10>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'git_senior_sync' from 'C:\\Users\\acord\\OneDrive\\Desktop\\Biblioteca MCP\\Ultragent\\git_senior_sync.py'> does not have the attribute 'get_router'
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1465: AttributeError
+_______________ ERROR at setup of test_git_senior_sync_changes ________________
+
+    @pytest.fixture
+    def mock_router():
+>       with patch('git_senior_sync.get_router') as mock_get_router:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_git_senior_sync.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1495: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001B62877C320>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'git_senior_sync' from 'C:\\Users\\acord\\OneDrive\\Desktop\\Biblioteca MCP\\Ultragent\\git_senior_sync.py'> does not have the attribute 'get_router'
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1465: AttributeError
+================================== FAILURES ===================================
+_______________________ test_git_senior_sync_exception ________________________
+
+mock_subprocess_run = <MagicMock name='run' id='1881873968704'>
+mock_logger = <MagicMock name='logger' id='1881873960304'>
+
+    @pytest.mark.asyncio
+    async def test_git_senior_sync_exception(mock_subprocess_run, mock_logger):
+        mock_subprocess_run.side_effect = Exception('test error')
+        await git_senior_sync()
+>       mock_logger.error.assert_any_call('\u274c Fallo en la sincronizaci\xf3n: test error')
+
+tests\test_git_senior_sync.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='logger.error' id='1881873968032'>
+args = ('\u274c Fallo en la sincronizaci\xf3n: test error',), kwargs = {}
+expected = call('\u274c Fallo en la sincronizaci\xf3n: test error'), cause = None
+actual = [call('Unexpected error in run_git: test error')]
+expected_string = "error('\u274c Fallo en la sincronizaci\xf3n: test error')"
+
+    def assert_any_call(self, /, *args, **kwargs):
+        """assert the mock has been called with the specified arguments.
+    
+        The assert passes if the mock has *ever* been called, unlike
+        `assert_called_with` and `assert_called_once_with` that only pass if
+        the call is the most recent one."""
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        cause = expected if isinstance(expected, Exception) else None
+        actual = [self._call_matcher(c) for c in self.call_args_list]
+        if cause or expected not in _AnyComparer(actual):
+            expected_string = self._format_mock_call_signature(args, kwargs)
+>           raise AssertionError(
+                '%s call not found' % expected_string
+            ) from cause
+E           AssertionError: error('\u274c Fallo en la sincronizaci\xf3n: test error') call not found
+
+..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1048: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_git_senior_sync.py::test_git_senior_sync_exception - Assert...
+ERROR tests/test_git_senior_sync.py::test_generate_commit_message_empty_diff
+ERROR tests/test_git_senior_sync.py::test_generate_commit_message - Attribute...
+ERROR tests/test_git_senior_sync.py::test_generate_commit_message_exception
+ERROR tests/test_git_senior_sync.py::test_git_senior_sync_changes - Attribute...
+==================== 1 failed, 4 passed, 4 errors in 0.51s ====================

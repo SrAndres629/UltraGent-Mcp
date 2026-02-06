@@ -1,13 +1,13 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from git_senior_sync import generate_commit_message, run_git, git_senior_sync
 import asyncio
 
 @pytest.fixture
 def mock_router():
-    with patch('git_senior_sync.get_router') as mock_get_router:
+    with patch('router.get_router') as mock_get_router:
         mock_router = mock_get_router.return_value
-        mock_router.route_request.return_value = {'response': 'feat: test commit message'}
+        mock_router.route_task = AsyncMock(return_value={'response': 'feat: test commit message'})
         yield mock_router
 
 @pytest.fixture
@@ -21,15 +21,18 @@ def mock_logger():
     with patch('git_senior_sync.logger') as mock_logger:
         yield mock_logger
 
-def test_generate_commit_message_empty_diff(mock_router):
-    assert generate_commit_message('') == 'chore: minor updates'
+@pytest.mark.asyncio
+async def test_generate_commit_message_empty_diff(mock_router):
+    assert await generate_commit_message('') == 'chore: minor updates'
 
-def test_generate_commit_message(mock_router):
-    assert generate_commit_message('test diff') == 'feat: test commit message'
+@pytest.mark.asyncio
+async def test_generate_commit_message(mock_router):
+    assert await generate_commit_message('test diff') == 'feat: test commit message'
 
-def test_generate_commit_message_exception(mock_router):
-    mock_router.route_request.side_effect = Exception('test exception')
-    assert generate_commit_message('test diff') == 'feat: automate senior git synchronization flow [emergency fallback]'
+@pytest.mark.asyncio
+async def test_generate_commit_message_exception(mock_router):
+    mock_router.route_task.side_effect = Exception('test exception')
+    assert await generate_commit_message('test diff') == 'feat: automate senior git synchronization flow [emergency fallback]'
 
 def test_run_git(mock_subprocess_run):
     assert run_git(['status', '--short']) == 'test output'
@@ -58,4 +61,4 @@ async def test_git_senior_sync_changes(mock_subprocess_run, mock_logger, mock_ro
 async def test_git_senior_sync_exception(mock_subprocess_run, mock_logger):
     mock_subprocess_run.side_effect = Exception('test error')
     await git_senior_sync()
-    mock_logger.error.assert_any_call('❌ Fallo en la sincronización: test error')
+    mock_logger.error.assert_any_call('Unexpected error in run_git: test error')

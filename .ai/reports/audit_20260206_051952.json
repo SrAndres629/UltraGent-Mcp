@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-02-06T05:19:52.385648",
+  "local_file": "buggy_module.py",
+  "benchmark_repo": "gold/math",
+  "scorecard": {
+    "readability": 60,
+    "scalability": 60,
+    "error_handling": 60,
+    "coupling": 60,
+    "total": 60.0,
+    "grade": "C"
+  },
+  "verdict": "NEEDS_WORK",
+  "critical_issues": [
+    {
+      "category": "ANALYSIS",
+      "severity": "MAJOR",
+      "description": "No LLM available for deep analysis",
+      "solution": "Configure Omni-Router with API keys"
+    }
+  ],
+  "benchmark_lessons": [],
+  "praise": [],
+  "iteration": 1
+}
